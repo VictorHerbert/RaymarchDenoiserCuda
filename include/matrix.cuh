@@ -21,7 +21,7 @@ inline bool operator!=(const int3& a, const int3& b) {
 template <typename T>
 struct CudaVector{
     T* data;
-    size_t size;
+    int size;
 
     CudaVector(size_t size) : size(size) {
         cudaMalloc(&data, size * sizeof(T));
@@ -29,10 +29,14 @@ struct CudaVector{
 
     CudaVector(T* v, size_t size) : size(size) {
         cudaMalloc(&data, size * sizeof(T));
-        cudaMemcpy(data, v, size * sizeof(T), cudaMemcpyHostToDevice);
+        //cudaMemcpy(data, v, size * sizeof(T), cudaMemcpyHostToDevice);
     }
 
     CudaVector(std::vector<T>& v) : CudaVector(v.data(), v.size()){}
+
+    void copy(std::vector<T>& v){
+        //cudaMemcpy(data, v.data(), size * sizeof(T), cudaMemcpyHostToDevice);
+    }
 
     ~CudaVector() {
         cudaFree(data);

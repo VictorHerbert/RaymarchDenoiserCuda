@@ -1,1 +1,5 @@
 build/*
+glfw3.dll
+glfw3dll.lib
+imgui.ini
+vc140.pdb

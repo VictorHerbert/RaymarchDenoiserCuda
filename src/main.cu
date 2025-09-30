@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "matrix.cuh"
-#include "third_party/helper_math.h"
 
 #include "window.cuh"
 #include "test.cuh"

@@ -8,10 +8,9 @@
 #include <iostream>
 #include <chrono>
 
+#include "third_party/helper_math.h"
 #include "image.cuh"
 #include "filter.cuh"
-
-#include "third_party/helper_math.h"
 #include "math.h"
 #include "raymarch.cuh"
 
@@ -85,7 +84,7 @@ float sigmaNormal = 0.5;
 float minSigma = 0.1;
 float maxSigma = 1.0f;
 
-int2 shape = {256, 256};
+int2 shape = {512, 512};
 
 std::vector<float3> render(totalSize(shape));
 std::vector<float3> normal(totalSize(shape));
@@ -93,10 +92,10 @@ std::vector<float3> normal(totalSize(shape));
 auto previousFrameCheckpoint = std::chrono::high_resolution_clock::now();
 
 Camera camera = {
-    .pos = {0,-.5,-2},
-    .forward = {0,0,1},
-    .plane = {1,1},
-    .dist = 1
+    {0,-.5,-2}, // .pos 
+    {0,0,1},    // forward
+    {1,1},      // plane
+    1           // dist
 };
 
 
@@ -143,20 +142,41 @@ void renderUI() {
 // -------------------------------------------------------------------------------
 
     static std::vector<Solid> solids = {
-        {Sphere, {0,0,0}, {.3,.3,.3}, {.5,.5,.5}}
+        {Light,     {0,1,0}, {.3,.3,.3}, {0,0,1}},
+
+        {Box,      {0,-1,0},  {1,0.01,1},   {1,1,1}},
+        {Box,    {0,0.5,0},   {1,0.01,1},   {1,1,1}},
+        {Box,   {0,0,0.5},   {1,1,0.01},   {1,1,1}},
+        {Box,   {-0.5,0,0},  {0.01,1,1},   {1,0,0}},
+        {Box,  {0.5,0,0},   {0.01,1,1},   {0,1,0}},
+
+        {Box,       {-0.15,-0.25,0.15},  {0.2,0.25,0.2},   {0,0,1}},
+        {Box,       {0.2,-0.35,-0.1},    {0.15,0.35,0.15}, {1,1,0}}
     };
     
-    static CudaVector<Solid> scene(solids);
+    static CudaVector<Solid> scene(solids.size());
     static CudaVector<float3> render(totalSize(shape)), normal(totalSize(shape)), albedo(totalSize(shape));
-    raymarchSceneGPU(camera, {scene.size, scene.data}, {shape, render.data, normal.data, albedo.data});
+ 
     static std::vector<float3> render_cpu(totalSize(shape));
-    cudaMemcpy(render_cpu.data(), render.data, sizeof(float3)*totalSize(shape), cudaMemcpyDeviceToHost);
 
-    auto img_texture = textureFromBuffer(render_cpu.data(), shape);
+    static GLuint img_texture;
+
+    static bool update = true;
+
+    if(raymarchCPU){
+
+    }
+    else {
+        scene.copy(solids);
+        raymarchSceneGPU(camera, {scene.size, scene.data}, {shape, render.data, normal.data, albedo.data, nullptr});
+        //cudaMemcpy(render_cpu.data(), render.data, sizeof(float3)*totalSize(shape), cudaMemcpyDeviceToHost);
+        img_texture = textureFromBuffer(render_cpu.data(), shape);
+    }
+    
+
 
 // -------------------------------------------------------------------------------
     std::chrono::duration<double, std::milli> processingTime = clock::now() - frameCheckpoint;
-
 // -------------------------------------------------------------------------------
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -180,7 +200,7 @@ void renderUI() {
     ImGui::SeparatorText("Viewport");
     ImGui::InputInt2("Resolution", (int*) &shape, .1);
 
-    const char* items[] = { "Render", "Albedo", "Normal"};
+    const char* items[] = { "Render", "Denoised", "Albedo", "Normal"};
     static int item_selected_idx = 0;
 
     const char* combo_preview_value = items[item_selected_idx];
@@ -202,24 +222,18 @@ void renderUI() {
     }
     camera.forward = normalize(camera.forward);
     float dummy []= {.5,.5,.5};
-    
-    /*std::vector<std::string> objNames = {"Empty", "Sphere", "Plane"};
 
-    
+    const char* objTypeNames[] = {"Light", "Sphere", "Box"};
+
     for(int i = 0; i < scene.size; i++){
-        if(ImGui::CollapsingHeader(objNames[id_table[i]].c_str())){
-            ImGui::DragFloat3("Pos", (float*) &dummy, .1);
-            ImGui::DragFloat3("Scale", (float*) &dummy, .1);
-            ImGui::ColorEdit3("Color", (float*) &dummy, ImGuiColorEditFlags_Float);
-            switch (scene.id_table[i]){
-            case Sphere:
-                ImGui::DragFloat("Radius", (float*) &scene.arena[0], .1);
-                break;
-            default:
-                break;
-            }
+        ImGui::PushID(i);
+        if(ImGui::CollapsingHeader(objTypeNames[solids[i].type])){
+            ImGui::DragFloat3("Pos", (float*) &solids[i].pos, .1);
+            ImGui::DragFloat3("Scale", (float*) &solids[i].scale, .1);
+            ImGui::ColorEdit3("Color", (float*) &solids[i].col, ImGuiColorEditFlags_Float);
         }
-    }*/
+        ImGui::PopID();
+    }
 
     ImGui::SeparatorText("Setup");
 

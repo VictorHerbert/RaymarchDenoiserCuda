@@ -3,16 +3,15 @@
 #include "matrix.cuh"
 #include "third_party/helper_math.h"
 
+__constant__  int MAX_STEPS = 500;
+__constant__  float MAX_DIST = 100;
+__constant__  float SURF_DIST = .01;
 
-const int MAX_STEPS = 100;
-const float MAX_DIST = 1e4;
-const float SURF_DIST = 1e-6;
-
-float2 operator/(const int2& a, const int2& b) {
+/*KFUNC float2 operator/(const int2& a, const int2& b) {
     return make_float2((float) a.x/b.x, (float) a.y/b.y);
-}
+}*/
 
-float3 viewportToWorld(int2 pos, int2 shape, Camera camera) {
+__forceinline__  KFUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camera){
     float3 worldUp = {0,1,0};
     float3 right = normalize(cross(camera.forward, worldUp));
     float3 up    = normalize(cross(right, camera.forward));
@@ -27,29 +26,33 @@ float3 viewportToWorld(int2 pos, int2 shape, Camera camera) {
 }
 
 
-float sdfSphere(float3 pos, float r){
-    return length(pos)-r;
+__forceinline__  KFUNC float sdfSphere(float3 p, float r){
+    return length(p)-r;
 }
 
-float sdfPlane(float3 pos){
-    return -pos.y;
+__forceinline__  KFUNC float sdfBox(float3 p, float3 dim) {
+    float3 q = make_float3(abs(p.x), abs(p.y), abs(p.z)) - dim;
+    float3 qMax = make_float3(max(q.x,0.0), max(q.y,0.0), max(q.z,0.0));
+    return length(qMax) + fminf(max(q.x, max(q.y,q.z)), 0.0f);
 }
 
 
-RenderData raymarchPoint(float3 pos, Scene scene){
+__forceinline__  KFUNC RenderData raymarchPoint(float3 pos, Scene scene){
     RenderData data;
     data.depth = MAX_DIST;
     
     for(int i = 0; i < scene.size; i++){
         Solid solid = scene.solids[i];
-        float currDist;
+        float currDist = 1e9;
+        float3 posTransform = pos - solid.pos;
 
         switch (solid.type){
         case Sphere:
-            currDist = sdfSphere(pos, solid.scale.x);
+            currDist = sdfSphere(posTransform, solid.scale.x);
             break;
         case Box:
-           //currDist = sdfBox(pos);
+           currDist = sdfBox(posTransform, solid.scale);
+           break;
         default:
             break;
         }
@@ -57,29 +60,13 @@ RenderData raymarchPoint(float3 pos, Scene scene){
         if(currDist < data.depth){
             data.depth = currDist;
             data.id = i;
-            if(i == 1)
-                data.col = make_float3(1,0,0);
-            if(i == 0)
-                data.col = make_float3(0,0,1);
+            data.albedo = scene.solids[i].col;
         }
     }
     return data;
 }
 
-float3 raymarchNormal(float3 p, Scene scene) {
-	float d = raymarchPoint(p, scene).depth;
-    float e = .01;
-    
-    float3 n = d - make_float3(
-        raymarchPoint(p-make_float3(e,0,0), scene).depth,
-        raymarchPoint(p-make_float3(0,e,0), scene).depth,
-        raymarchPoint(p-make_float3(0,0,e), scene).depth
-    );
-    
-    return normalize(n);
-}
-
-RenderData raymarchRay(Ray ray, Scene scene){
+__forceinline__  KFUNC RenderData raymarchRay(Ray ray, Scene scene){
     RenderData data;
     float distTotal = 0;
     float distStep = 0;
@@ -89,7 +76,7 @@ RenderData raymarchRay(Ray ray, Scene scene){
         distTotal += distStep;
         if(distTotal > MAX_DIST){
             data.id = -1;
-            data.col = {0,0,0};
+            data.albedo = {0,0,0};
             data.normal = {0,0,0};
             break;
         }
@@ -101,8 +88,11 @@ RenderData raymarchRay(Ray ray, Scene scene){
         if(distStep < SURF_DIST) break;
     }
 
-    if(data.id != -1)
+    if(data.id != -1){
         data.normal = raymarchNormal(posCurr, scene);
+        data.light = ambientLight(data.normal, scene);
+        data.col = data.light * data.albedo;
+    }
 
     return data;
 }
@@ -120,13 +110,14 @@ void raymarchSceneCPU(Camera camera, Scene scene, Framebuffer framebuffer){
 void raymarchSceneGPU(Camera camera, Scene scene, Framebuffer framebuffer){
     dim3 blockSize(16, 16);
     dim3 gridSize((framebuffer.shape.x + 15) / 16, (framebuffer.shape.y + 15) / 16);
-
+    
     raymarchSceneKernel<<<gridSize,blockSize>>>(camera, scene, framebuffer);
-    cudaDeviceSynchronize();
+    //cudaDeviceSynchronize();
 }
 
 
 KERNEL void raymarchSceneKernel(Camera camera, Scene scene, Framebuffer framebuffer){
+    
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
@@ -135,15 +126,41 @@ KERNEL void raymarchSceneKernel(Camera camera, Scene scene, Framebuffer framebuf
     if(pos.x >= framebuffer.shape.x || pos.y >= framebuffer.shape.y)
         return;
     
+    
     raymarchScenePixel(pos, camera, scene, framebuffer);
 }
 
-KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer){
+__forceinline__  KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer){
     float3 worldPos = viewportToWorld(pixelPos, framebuffer.shape, camera);
     Ray ray = {camera.pos, normalize(worldPos - camera.pos)};
     RenderData data = raymarchRay(ray, scene);
+
     framebuffer.render[index(pixelPos, framebuffer.shape)] = data.col;
     framebuffer.normal[index(pixelPos, framebuffer.shape)] = data.normal;
 
-    framebuffer.render[index(pixelPos, framebuffer.shape)] = {255, 0, 0};
+    //framebuffer.render[index(pixelPos, framebuffer.shape)] = {255, 0, 0};
+}
+
+
+
+__forceinline__ KFUNC float3 raymarchNormal(float3 p, Scene scene) {
+	float d = raymarchPoint(p, scene).depth;
+    float e = .01;
+    
+    float3 n = d - make_float3(
+        raymarchPoint(p-make_float3(e,0,0), scene).depth,
+        raymarchPoint(p-make_float3(0,e,0), scene).depth,
+        raymarchPoint(p-make_float3(0,0,e), scene).depth
+    );
+    
+    return normalize(n);
+}
+
+KFUNC float3 ambientLight(float3 normal, Scene scene){
+    float3 lightAcum = {.5,.5,.5};
+    for(int i = 0; i < scene.size; i++){
+        if(scene.solids[i].type == Light)
+            lightAcum += min(0.0, dot(normal, normalize(scene.solids[i].pos))) * scene.solids[i].col;
+    }
+    return lightAcum;
 }
