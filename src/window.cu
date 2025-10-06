@@ -141,7 +141,7 @@ void renderUI() {
 
 // -------------------------------------------------------------------------------
 
-    static std::vector<Solid> solids = {
+    /*static std::vector<Solid> solids = {
         {Light,     {0,1,0}, {.3,.3,.3}, {0,0,1}},
 
         {Box,      {0,-1,0},  {1,0.01,1},   {1,1,1}},
@@ -171,8 +171,29 @@ void renderUI() {
         raymarchSceneGPU(camera, {scene.size(), scene.data()}, {shape, render.data(), normal.data(), albedo.data(), nullptr});
         //cudaMemcpy(render_cpu.data(), render.data, sizeof(float3)*totalSize(shape), cudaMemcpyDeviceToHost);
         img_texture = textureFromBuffer(render_cpu.data(), shape);
-    }
+    }*/
+
+    Image<float3> render_img("render/cornell/1/render.png");
+    Image<float3> albedo_img("render/cornell/1/albedo.png");
+    Image<float3> normal_img("render/cornell/1/normal.png");
     
+    int2 shape = render_img.shape;
+
+    Image<float3> denoised_img(shape);
+
+    CudaVector<float3> render(render_img.vecBuffer);
+    CudaVector<float3> albedo(albedo_img.vecBuffer);
+    CudaVector<float3> normal(normal_img.vecBuffer);
+    CudaVector<float3> denoised(totalSize(shape));
+
+    waveletfilterGPU(
+        {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
+        {depth, sigmaSpace, sigmaColor, sigmaAlbedo, sigmaNormal}
+    ); 
+    denoised.copyTo(denoised_img.vecBuffer);
+
+    static GLuint img_texture;
+    img_texture = textureFromBuffer(denoised_img.vecBuffer.data(), shape);
 
 
 // -------------------------------------------------------------------------------
@@ -225,7 +246,7 @@ void renderUI() {
 
     const char* objTypeNames[] = {"Light", "Sphere", "Box"};
 
-    for(int i = 0; i < scene.size(); i++){
+    /*for(int i = 0; i < scene.size(); i++){
         ImGui::PushID(i);
         if(ImGui::CollapsingHeader(objTypeNames[solids[i].type])){
             ImGui::DragFloat3("Pos", (float*) &solids[i].pos, .1);
@@ -233,7 +254,7 @@ void renderUI() {
             ImGui::ColorEdit3("Color", (float*) &solids[i].col, ImGuiColorEditFlags_Float);
         }
         ImGui::PopID();
-    }
+    }*/
 
     ImGui::SeparatorText("Setup");
 

@@ -9,7 +9,7 @@
             "type": "cuda-gdb",
             //"debuggerPath": "/home/victor/workspace/CuBer/cuda-gdb",
             "request": "launch",
-            "args": ["-t"],
+            "args": ["-gui"],
             "program": "${workspaceFolder}/build/main",
             "preLaunchTask": "Make",
             "cwd": "${workspaceFolder}"
@@ -19,7 +19,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/main",
-            "args": ["-t"],
+            "args": ["-gui"],
             "preLaunchTask": "Make",
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

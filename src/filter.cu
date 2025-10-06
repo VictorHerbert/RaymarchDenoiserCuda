@@ -12,7 +12,7 @@ void waveletfilterCPU(Framebuffer frame, DenoiseParams params){
     if(2 * totalSize(frame.shape) > bufferVec.size())
         bufferVec.resize(2 * totalSize(frame.shape));
 
-    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape) * sizeof(float3)};
+    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
 
     DenoiseParams pixelParams = params;
 
@@ -41,14 +41,13 @@ void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
     if(2 * totalSize(frame.shape) > bufferVec.size())
         bufferVec.resize(2 * totalSize(frame.shape));
 
-    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape) * sizeof(float3)};
+    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
 
     for(int i = 0; i < params.depth; i++){
         pixelParams.step = 1<<i;
-
         waveletKernel<<<gridSize,blockSize>>>(
-            i == 0 ? frame.render : buffer[i%2],
-            i == (params.depth - 1) ? frame.denoised : buffer[(i+1)%2],
+            (i == 0) ? frame.render : buffer[i%2],
+            (i == (params.depth - 1)) ? frame.denoised : buffer[(i+1)%2],
             frame, pixelParams);
 
         cudaDeviceSynchronize();
@@ -63,9 +62,6 @@ __global__ void waveletKernel(float3* in, float3* out, Framebuffer frame, Denois
 
     if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
         return;
-
-    out[index(pos, frame.shape)] = {1,1,1};
-    return;
 
     waveletfilterPixel(pos, in, out, frame, params);
 }
