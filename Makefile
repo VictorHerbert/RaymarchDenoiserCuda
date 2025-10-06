@@ -67,7 +67,7 @@ window:
 	@./$(TARGET) -gui
 
 $(TARGET): $(ALL_OBJ)
-	@$(NVCC) $(CXXFLAGS_LK) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(CXXFLAGS_LK) -o $@ $^ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
@@ -75,7 +75,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
 	@$(NVCC) $(CXXFLAGS) -c $< -o $@

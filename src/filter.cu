@@ -32,7 +32,7 @@ void waveletfilterCPU(Framebuffer frame, DenoiseParams params){
     }
 }
 
-void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
+void waveletfilterGPU(Framebuffer frame, DenoiseParams params){  
     dim3 blockSize(16, 16);
     dim3 gridSize((frame.shape.x + 15) / 16, (frame.shape.y + 15) / 16);
     DenoiseParams pixelParams = params;
@@ -45,10 +45,12 @@ void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
 
     for(int i = 0; i < params.depth; i++){
         pixelParams.step = 1<<i;
+
         waveletKernel<<<gridSize,blockSize>>>(
             i == 0 ? frame.render : buffer[i%2],
             i == (params.depth - 1) ? frame.denoised : buffer[(i+1)%2],
             frame, pixelParams);
+
         cudaDeviceSynchronize();
     }
 }
@@ -62,12 +64,13 @@ __global__ void waveletKernel(float3* in, float3* out, Framebuffer frame, Denois
     if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
         return;
 
+    out[index(pos, frame.shape)] = {1,1,1};
+    return;
+
     waveletfilterPixel(pos, in, out, frame, params);
 }
 
 void waveletfilterPixel(int2 pos, float3* in, float3* out, Framebuffer frame, DenoiseParams params){
-    out[index(pos, frame.shape)] = in[index(pos, frame.shape)];
-    return;
     const float h[3] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
 
     float3 acum = {0, 0, 0};

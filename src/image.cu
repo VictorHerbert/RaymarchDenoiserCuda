@@ -14,6 +14,7 @@
 #include "utils.cuh"
 #include <stdexcept>
 
+template<>
 Image<uchar3>::Image(std::string filename){
     int dummy;
     uchar3* buffer = (uchar3*) stbi_load(filename.c_str(), &(shape.x), &(shape.y), &dummy, 3);
@@ -27,6 +28,7 @@ Image<uchar3>::Image(std::string filename){
     free(buffer);
 }
 
+template<>
 Image<float3>::Image(std::string filename){
     int dummy;
     uchar3* buffer = (uchar3*) stbi_load(filename.c_str(), &(shape.x), &(shape.y), &dummy, 3);
@@ -43,12 +45,14 @@ Image<float3>::Image(std::string filename){
     free(buffer);
 }
 
+template<>
 void Image<uchar3>::save(std::string filename){
     if(!stbi_write_png(filename.c_str(), shape.x, shape.y, 3, vecBuffer.data(), shape.x * 3)){
         throw std::runtime_error("Failed to save image" + filename + "': " + stbi_failure_reason());
     }
 }
 
+template<>
 void Image<float3>::save(std::string filename){
     std::vector<uchar3> buffer(totalSize(shape));
     for(int i = 0; i < buffer.size(); i++){

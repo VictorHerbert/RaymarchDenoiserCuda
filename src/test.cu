@@ -32,7 +32,7 @@ void test_filter_cpu(){
     );    
     //cudaMemcpy(denoised_img.vecBuffer.data(), denoised.data(), sizeof(float3) * totalSize(shape), cudaMemcpyDeviceToHost);
  
-    denoised_img.save("build/output/denoised.png");
+    denoised_img.save("build/output/denoised_cpu.png");
 }
 
 void test_filter_gpu(){
@@ -52,10 +52,11 @@ void test_filter_gpu(){
     waveletfilterGPU(
         {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
         {5, 1.0f, 2.0f, 0.5f, 0.3f}
-    );    
-    cudaMemcpy(denoised_img.vecBuffer.data(), denoised.data(), sizeof(float3) * totalSize(shape), cudaMemcpyDeviceToHost);
+    );  
+    //cudaMemcpy(denoised_img.vecBuffer.data(), denoised.data(), sizeof(float3) * totalSize(shape), cudaMemcpyDeviceToHost);
+    denoised.copyTo(denoised_img.vecBuffer);
  
-    denoised_img.save("build/output/denoised.png");
+    denoised_img.save("build/output/denoised_gpu.png");
 }
 
 

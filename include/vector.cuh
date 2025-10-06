@@ -31,6 +31,7 @@ public:
     size_t size() const;
 
     void copy(const CPUVector<T>& v);
+    void copyTo(CPUVector<T>& v);
     void resize(size_t size);
     ~CudaVector();
 };
@@ -80,5 +81,9 @@ CudaVector<T>::~CudaVector() {
     cudaFree(data_p);
 }
 
+template <typename T>
+void CudaVector<T>::copyTo(CPUVector<T> &v) {
+    cudaMemcpy(v.data(), data_p, sizeof(T) * size_p, cudaMemcpyDeviceToHost);
+}
 
 #endif

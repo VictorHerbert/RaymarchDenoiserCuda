@@ -11,7 +11,7 @@ __constant__  float SURF_DIST = .01;
     return make_float2((float) a.x/b.x, (float) a.y/b.y);
 }*/
 
-__forceinline__  KFUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camera){
+KFUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camera){
     float3 worldUp = {0,1,0};
     float3 right = normalize(cross(camera.forward, worldUp));
     float3 up    = normalize(cross(right, camera.forward));
@@ -25,19 +25,18 @@ __forceinline__  KFUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camer
     return camera.pos + planeCenter + posInPlane;
 }
 
-
-__forceinline__  KFUNC float sdfSphere(float3 p, float r){
+KFUNC float sdfSphere(float3 p, float r){
     return length(p)-r;
 }
 
-__forceinline__  KFUNC float sdfBox(float3 p, float3 dim) {
+KFUNC float sdfBox(float3 p, float3 dim) {
     float3 q = make_float3(abs(p.x), abs(p.y), abs(p.z)) - dim;
     float3 qMax = make_float3(max(q.x,0.0), max(q.y,0.0), max(q.z,0.0));
     return length(qMax) + fminf(max(q.x, max(q.y,q.z)), 0.0f);
 }
 
 
-__forceinline__  KFUNC RenderData raymarchPoint(float3 pos, Scene scene){
+KFUNC RenderData raymarchPoint(float3 pos, Scene scene){
     RenderData data;
     data.depth = MAX_DIST;
     
@@ -66,7 +65,7 @@ __forceinline__  KFUNC RenderData raymarchPoint(float3 pos, Scene scene){
     return data;
 }
 
-__forceinline__  KFUNC RenderData raymarchRay(Ray ray, Scene scene){
+KFUNC RenderData raymarchRay(Ray ray, Scene scene){
     RenderData data;
     float distTotal = 0;
     float distStep = 0;
@@ -130,7 +129,7 @@ KERNEL void raymarchSceneKernel(Camera camera, Scene scene, Framebuffer framebuf
     raymarchScenePixel(pos, camera, scene, framebuffer);
 }
 
-__forceinline__  KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer){
+KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer){
     float3 worldPos = viewportToWorld(pixelPos, framebuffer.shape, camera);
     Ray ray = {camera.pos, normalize(worldPos - camera.pos)};
     RenderData data = raymarchRay(ray, scene);
@@ -143,7 +142,7 @@ __forceinline__  KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Sce
 
 
 
-__forceinline__ KFUNC float3 raymarchNormal(float3 p, Scene scene) {
+KFUNC float3 raymarchNormal(float3 p, Scene scene) {
 	float d = raymarchPoint(p, scene).depth;
     float e = .01;
     
