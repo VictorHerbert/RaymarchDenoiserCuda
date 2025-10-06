@@ -1,14 +1,13 @@
-#include <iostream>
-
-#include "matrix.cuh"
-
 #include "window.cuh"
 #include "test.cuh"
 
-#include "filter.cuh"
-
 int main(int argc, char* argv[]){
-    window();
-    //test();
+    if (argc > 1) {
+        if (strcmp(argv[1], "-gui") == 0) {
+            window();
+        } else if (strcmp(argv[1], "-t") == 0) {
+            test();
+        }
+    }
     return 0;
 }

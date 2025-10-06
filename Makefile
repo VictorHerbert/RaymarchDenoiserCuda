@@ -60,7 +60,10 @@ TARGET = $(BUILD_DIR)/main
 # =========================
 all: $(TARGET)
 
-window: $(TARGET)
+test: $(TARGET)
+	@./$(TARGET) -t
+
+window:
 	@./$(TARGET) -gui
 
 $(TARGET): $(ALL_OBJ)
@@ -72,10 +75,14 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	$(NVCC) $(CXXFLAGS) -c $< -o $@
+	@$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
 	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+
+doxygen:
+	doxygen Doxyfile
+
 
 # =========================
 # Clean
@@ -83,5 +90,6 @@ $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
 clean:
 	$(RM) -rf $(BUILD_DIR)/*
 	$(MKDIR) -p build/imgui/backends
+	$(MKDIR) -p build/output
 
 .PHONY: render all clean run

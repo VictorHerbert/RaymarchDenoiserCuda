@@ -168,7 +168,7 @@ void renderUI() {
     }
     else {
         scene.copy(solids);
-        raymarchSceneGPU(camera, {scene.size, scene.data}, {shape, render.data, normal.data, albedo.data, nullptr});
+        raymarchSceneGPU(camera, {scene.size(), scene.data()}, {shape, render.data(), normal.data(), albedo.data(), nullptr});
         //cudaMemcpy(render_cpu.data(), render.data, sizeof(float3)*totalSize(shape), cudaMemcpyDeviceToHost);
         img_texture = textureFromBuffer(render_cpu.data(), shape);
     }
@@ -225,7 +225,7 @@ void renderUI() {
 
     const char* objTypeNames[] = {"Light", "Sphere", "Box"};
 
-    for(int i = 0; i < scene.size; i++){
+    for(int i = 0; i < scene.size(); i++){
         ImGui::PushID(i);
         if(ImGui::CollapsingHeader(objTypeNames[solids[i].type])){
             ImGui::DragFloat3("Pos", (float*) &solids[i].pos, .1);

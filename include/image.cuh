@@ -6,23 +6,29 @@
 
 #include "cuda_runtime.h"
 
-#include "matrix.cuh"
+#include "utils.cuh"
+#include "vector.cuh"
 
-struct Image{
-    int3 shape;
-    uchar* buffer;
-    std::vector<uchar> vBuffer;
-    bool stbi_allocated = false;
-    
-    Image(){}
-    Image(float3* data, int2 shape);
-    Image(std::string filename);
-    ~Image();
-    
-    bool close();
-    bool save(std::string filename);
+struct Framebuffer{
+    int2 shape;
+    float3* render;
+    float3* normal;
+    float3* albedo;
+    float3* denoised;
 };
 
-std::vector<float3> fVecFromImage(const Image& img);
+template <typename T>
+struct Image{
+    int2 shape;
+    std::vector<T> vecBuffer;
+
+    Image(int2 shape){
+        this->shape = shape;
+        vecBuffer.resize(totalSize(shape));
+    }
+    Image(std::string filename);
+    
+    void save(std::string filename);
+};
 
 #endif

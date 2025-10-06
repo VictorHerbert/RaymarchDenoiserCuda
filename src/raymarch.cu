@@ -1,6 +1,6 @@
 #include "raymarch.cuh"
 
-#include "matrix.cuh"
+#include "vector.cuh"
 #include "third_party/helper_math.h"
 
 __constant__  int MAX_STEPS = 500;

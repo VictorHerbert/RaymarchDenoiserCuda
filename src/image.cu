@@ -11,54 +11,51 @@
 
 #include "third_party/helper_math.h"
 
+#include "utils.cuh"
 #include <stdexcept>
 
+Image<uchar3>::Image(std::string filename){
+    int dummy;
+    uchar3* buffer = (uchar3*) stbi_load(filename.c_str(), &(shape.x), &(shape.y), &dummy, 3);
 
-Image::Image(float3* fmat, int2 shape){
-    vBuffer.resize(3*totalSize(shape));
-    this->shape = {shape.x, shape.y, 3};
-    buffer = vBuffer.data();
-    for(int i = 0; i < vBuffer.size(); i+=3){
-        vBuffer[i] = static_cast<uchar>(fmat[i/3].x*255);
-        vBuffer[i+1] = static_cast<uchar>(fmat[i/3].y*255);
-        vBuffer[i+2] = static_cast<uchar>(fmat[i/3].z*255);
-    }
-    stbi_allocated = false;
-}
-
-
-Image::Image(std::string filename){    
-    buffer = (uchar*) stbi_load(filename.c_str(), &(shape.x), &(shape.y), &(shape.z), 3);
-    shape.z = 3;
     if(buffer == nullptr)
-        throw std::runtime_error(
-            std::string("Failed to load image '") + filename + "': " + stbi_failure_reason()
-        );
-    stbi_allocated = true;
+        throw std::runtime_error("Failed to load image" + filename + "': " + stbi_failure_reason());
+
+    vecBuffer.resize(totalSize(shape));
+    memcpy(vecBuffer.data(), buffer, totalSize(shape) * sizeof(uchar3));
+    
+    free(buffer);
 }
 
-Image::~Image(){
-    if(stbi_allocated)
-        close();
+Image<float3>::Image(std::string filename){
+    int dummy;
+    uchar3* buffer = (uchar3*) stbi_load(filename.c_str(), &(shape.x), &(shape.y), &dummy, 3);
+
+    if(buffer == nullptr)
+        throw std::runtime_error("Failed to load image" + filename + "': " + stbi_failure_reason());
+
+    vecBuffer.resize(totalSize(shape));
+    for(int i = 0; i < vecBuffer.size(); i++){
+        vecBuffer[i] = make_float3(buffer[i].x, buffer[i].y, buffer[i].z);
+        vecBuffer[i] /= 255;
+    }
+
+    free(buffer);
 }
 
-bool Image::close(){
-    stbi_image_free(buffer);
-    return true;
+void Image<uchar3>::save(std::string filename){
+    if(!stbi_write_png(filename.c_str(), shape.x, shape.y, 3, vecBuffer.data(), shape.x * 3)){
+        throw std::runtime_error("Failed to save image" + filename + "': " + stbi_failure_reason());
+    }
 }
 
-bool Image::save(std::string filename){
-    return stbi_write_png(filename.c_str(), shape.x, shape.y, shape.z, buffer, shape.x * shape.z);
-}
+void Image<float3>::save(std::string filename){
+    std::vector<uchar3> buffer(totalSize(shape));
+    for(int i = 0; i < buffer.size(); i++){
+        buffer[i] = make_uchar3(vecBuffer[i].x*255, vecBuffer[i].y*255, vecBuffer[i].z*255);
+    }
 
-std::vector<float3> fVecFromImage(const Image& img){
-    std::vector<float3> out(img.shape.x * img.shape.y);
-    for(int i = 0; i < totalSize(img.shape); i+=3)
-        out[i/3] = {
-            static_cast<float>(img.buffer[i])/255,
-            static_cast<float>(img.buffer[i+1])/255,
-            static_cast<float>(img.buffer[i+2])/255
-        };
-
-    return out;
+    if(!stbi_write_png(filename.c_str(), shape.x, shape.y, 3, buffer.data(), shape.x * 3)){
+        throw std::runtime_error("Failed to save image" + filename + "': " + stbi_failure_reason());
+    }
 }

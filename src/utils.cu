@@ -1,4 +1,4 @@
-#include "third_party/helper_math.h"
+#include "utils.cuh"
 
 __device__ __host__ int totalSize(int2 shape){
     return shape.x * shape.y;
