@@ -4,6 +4,7 @@
 
 NVCC = nvcc
 CXX = $(NVCC)
+BLENDER = "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
 
 CXXFLAGS_LK = -w -G -g -O0 -std=c++17 -arch=sm_75 -I./include -I./include/imgui -I./include/imgui/backends
 CXXFLAGS = $(CXXFLAGS_LK) -dc
@@ -48,7 +49,7 @@ OBJ        := $(OBJ:$(SRC_DIR)/%.cu=$(BUILD_DIR)/%.o)
 IMGUI_OBJ  = $(patsubst $(INCLUDE_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(IMGUI_SRC))
 ALL_OBJ    = $(OBJ) $(IMGUI_OBJ)
 
-BLENDER = "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
+
 
 # =========================
 # Target
@@ -83,6 +84,8 @@ $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
 doxygen:
 	doxygen Doxyfile
 
+render: scenes/sponza.blend
+	$(BLENDER) -b scenes/sponza.blend -P scripts/render.py -- 1
 
 # =========================
 # Clean
