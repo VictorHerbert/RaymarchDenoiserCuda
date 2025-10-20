@@ -1,18 +1,16 @@
 #include "filter.cuh"
 
 #include <math.h>
-#include "third_party/helper_math.h"
 #include "iostream"
-
 #include "image.cuh"
-#include "raymarch.cuh"
+#include "utils.cuh"
 
 void waveletfilterCPU(Framebuffer frame, DenoiseParams params){
-    static CPUVector<float3> bufferVec;
+    static CPUVector<Pixel> bufferVec;
     if(2 * totalSize(frame.shape) > bufferVec.size())
         bufferVec.resize(2 * totalSize(frame.shape));
 
-    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
+    Pixel* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
 
     DenoiseParams pixelParams = params;
 
@@ -37,11 +35,11 @@ void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
     dim3 gridSize((frame.shape.x + 15) / 16, (frame.shape.y + 15) / 16);
     DenoiseParams pixelParams = params;
 
-    static CudaVector<float3> bufferVec;
+    static CudaVector<Pixel> bufferVec;
     if(2 * totalSize(frame.shape) > bufferVec.size())
         bufferVec.resize(2 * totalSize(frame.shape));
 
-    float3* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
+    Pixel* buffer[2] = {bufferVec.data(), bufferVec.data() + totalSize(frame.shape)};
 
     for(int i = 0; i < params.depth; i++){
         pixelParams.step = 1<<i;
@@ -54,7 +52,7 @@ void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
     }
 }
 
-__global__ void waveletKernel(float3* in, float3* out, Framebuffer frame, DenoiseParams params){
+__global__ void waveletKernel(Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
@@ -66,7 +64,7 @@ __global__ void waveletKernel(float3* in, float3* out, Framebuffer frame, Denois
     waveletfilterPixel(pos, in, out, frame, params);
 }
 
-void waveletfilterPixel(int2 pos, float3* in, float3* out, Framebuffer frame, DenoiseParams params){
+void waveletfilterPixel(int2 pos, Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
     const float h[3] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
 
     float3 acum = {0, 0, 0};
@@ -81,10 +79,10 @@ void waveletfilterPixel(int2 pos, float3* in, float3* out, Framebuffer frame, De
             };
 
             if(inRange(n, frame.shape)){
-                float3 dCol = in[index(pos, frame.shape)] - in[index(n, frame.shape)];
+                uchar3 dCol = in[index(pos, frame.shape)] - in[index(n, frame.shape)];
                 float wCol = length(dCol)/params.sigmaColor;
 
-                float3 dAlbedo = frame.albedo[index(pos, frame.shape)] - frame.albedo[index(n, frame.shape)];
+                uchar3 dAlbedo = frame.albedo[index(pos, frame.shape)] - frame.albedo[index(n, frame.shape)];
                 float wAlbedo = length(dAlbedo)/params.sigmaAlbedo;
 
                 float dNormal = min(0.0, dot(frame.normal[index(pos, frame.shape)], frame.normal[index(n, frame.shape)]));
@@ -105,5 +103,5 @@ void waveletfilterPixel(int2 pos, float3* in, float3* out, Framebuffer frame, De
         }
     }
     acum /= norm;
-    out[index(pos, frame.shape)] = acum;
+    out[index(pos, frame.shape)] = make_uchar3(acum);
 }

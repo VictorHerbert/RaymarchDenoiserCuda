@@ -2,9 +2,10 @@
 #define UTILS_h
 
 #include <chrono>
+#include <iostream>
 
 #define KERNEL __global__
-#define KFUNC __forceinline__ __host__ __device__
+#define KFUNC __host__ __device__
 #define LAUNCHER
 
 #ifndef GL_RGB32F
@@ -13,25 +14,27 @@
 
 typedef unsigned char uchar;
 
-/*inline bool operator==(const int3& a, const int3& b) {
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
+KFUNC int totalSize(int2 shape);
 
-inline bool operator!=(const int3& a, const int3& b) {
-    return !(a == b);
-}*/
+KFUNC int totalSize(int3 shape);
 
-//__device__ __host__ int dist(int2 p);
-//__device__ __host__ float dist(float2 p);
-//__device__ __host__ float dist(float3 p);
-__device__ __host__ int totalSize(int2 shape);
-__device__ __host__ int totalSize(int3 shape);
-__device__ __host__ int inRange(int2 pos, int2 shape);
-__device__ __host__ int index(int x, int y, int2 size);
-__device__ __host__ int index(int2 p, int2 size);
+KFUNC int inRange(int2 pos, int2 shape);
 
-#include <chrono>
-#include <iostream>
+KFUNC int index(int x, int y, int2 size);
+
+KFUNC int index(int2 p, int2 size);
+
+KFUNC uchar3 operator-(const uchar3 &a, const uchar3 &b);
+
+KFUNC float length(const uchar3 &v);
+
+KFUNC float dot(const uchar3 &a, const uchar3 &b);
+
+KFUNC float3 operator*(const float &f, const uchar3 &v);
+
+KFUNC float3 operator*(const uchar3 &v, const float &f);
+
+KFUNC uchar3 make_uchar3(const float3 &v);
 
 #define MEASURE_TIME_MS(code_block, elapsed_var)           \
     do {                                                   \
@@ -40,6 +43,10 @@ __device__ __host__ int index(int2 p, int2 size);
         auto end = std::chrono::high_resolution_clock::now();   \
         elapsed_var = std::chrono::duration<double, std::milli>(end - start).count(); \
     } while(0)
+
+
+//#include "third_party/helper_math.h"
+
 
 
 #endif

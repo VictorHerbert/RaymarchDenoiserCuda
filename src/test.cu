@@ -1,53 +1,63 @@
 #include "image.cuh"
 #include "filter.cuh"
+#include "test.cuh"
 
-void test_image(){
-    Image<uchar3> image_uchar3("render/cornell/1/render.png");
-    image_uchar3.save("build/output/uchar3.png");    
+#include <vector>
+#include <functional>
 
-    Image<float3> image_float3("render/cornell/1/render.png");
-    image_float3.save("build/output/float3.png");
+FuncVector registered_funcs;
+
+void test() {
+    if(registered_funcs.empty()){
+        std::cout << "No tests found" << std::endl;
+        return;
+    }
+    for (auto& [name, func] : registered_funcs) {
+        std::cout << "TEST " << name << "\t: ";
+        try {
+            func();
+            std::cout << "passed" << std::endl;
+        } catch (...) {
+            std::cout << "failed" << std::endl;
+        }
+    }
 }
 
-void test_cudacpy(){
-    Image<float3> image("render/cornell/1/render.png");
-    CudaVector<float3> vec(image.vecBuffer);
-    vec.copy(image.vecBuffer);
-    image.save("build/output/cpy.png");
+TEST(image){
+    Image image("render/cornell/1/render.png");
+    image.save("build/output/image.png");
 }
 
-
-void test_filter_cpu(){
-    Image<float3> render_img("render/cornell/1/render.png");
-    Image<float3> albedo_img("render/cornell/1/albedo.png");
-    Image<float3> normal_img("render/cornell/1/normal.png");
+TEST(filter_cpu){
+    Image render_img("render/cornell/1/render.png");
+    Image albedo_img("render/cornell/1/albedo.png");
+    Image normal_img("render/cornell/1/normal.png");
     
     int2 shape = render_img.shape;
 
-    Image<float3> denoised_img(shape);
+    Image denoised_img(shape);
 
     waveletfilterCPU(
         {shape, render_img.vecBuffer.data(), normal_img.vecBuffer.data(), albedo_img.vecBuffer.data(), denoised_img.vecBuffer.data()},
         {5, 0.5f, 0.5f, 0.5f, 0.3f}
     );    
-    //cudaMemcpy(denoised_img.vecBuffer.data(), denoised.data(), sizeof(float3) * totalSize(shape), cudaMemcpyDeviceToHost);
- 
-    denoised_img.save("build/output/denoised_cpu.png");
+
+    denoised_img.save("build/output/filter_cpu.png");
 }
 
-void test_filter_gpu(){
-    Image<float3> render_img("render/cornell/1/render.png");
-    Image<float3> albedo_img("render/cornell/1/albedo.png");
-    Image<float3> normal_img("render/cornell/1/normal.png");
+TEST(filter_gpu){
+    Image render_img("render/cornell/1/render.png");
+    Image albedo_img("render/cornell/1/albedo.png");
+    Image normal_img("render/cornell/1/normal.png");
     
     int2 shape = render_img.shape;
 
-    Image<float3> denoised_img(shape);
+    Image denoised_img(shape);
 
-    CudaVector<float3> render(render_img.vecBuffer);
-    CudaVector<float3> albedo(albedo_img.vecBuffer);
-    CudaVector<float3> normal(normal_img.vecBuffer);
-    CudaVector<float3> denoised(totalSize(shape));
+    CudaVector<uchar3> render(render_img.vecBuffer);
+    CudaVector<uchar3> albedo(albedo_img.vecBuffer);
+    CudaVector<uchar3> normal(normal_img.vecBuffer);
+    CudaVector<uchar3> denoised(totalSize(shape));
 
     waveletfilterGPU(
         {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
@@ -56,13 +66,5 @@ void test_filter_gpu(){
     denoised.copyTo(denoised_img.vecBuffer);
     
  
-    denoised_img.save("build/output/denoised_gpu.png");
-}
-
-
-void test(){
-    test_image();
-    test_cudacpy();
-    test_filter_cpu();
-    test_filter_gpu();
+    denoised_img.save("build/output/filter_gpu.png");
 }

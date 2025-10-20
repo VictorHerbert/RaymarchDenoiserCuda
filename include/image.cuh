@@ -9,18 +9,19 @@
 #include "utils.cuh"
 #include "vector.cuh"
 
+typedef uchar3 Pixel;
+
 struct Framebuffer{
     int2 shape;
-    float3* render;
-    float3* normal;
-    float3* albedo;
-    float3* denoised;
+    Pixel* render;
+    Pixel* normal;
+    Pixel* albedo;
+    Pixel* denoised;
 };
 
-template <typename T>
 struct Image{
     int2 shape;
-    std::vector<T> vecBuffer;
+    std::vector<uchar3> vecBuffer;
 
     Image(int2 shape){
         this->shape = shape;

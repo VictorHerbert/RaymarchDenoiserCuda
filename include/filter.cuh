@@ -3,7 +3,9 @@
 
 #include "utils.cuh"
 #include "vector.cuh"
-#include "raymarch.cuh"
+#include "image.cuh"
+
+#include "third_party/helper_math.h"
 
 struct DenoiseParams {
     union {
@@ -22,13 +24,13 @@ KFUNC float gaussian(float3 p, float sigma);
 
 KFUNC float lum(float3 col);
 
-float3 snrCPU(float3* original, float3* noisy, int2 shape);
-float3 snrGPU(float3* original, float3* noisy, int2 shape);
+float3 snrCPU(Pixel* original, Pixel* noisy, int2 shape);
+float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
 
-LAUNCHER    void waveletfilterCPU(Framebuffer frame, DenoiseParams params);
-LAUNCHER    void waveletfilterGPU(Framebuffer frame, DenoiseParams params);
+void waveletfilterCPU(Framebuffer frame, DenoiseParams params);
+void waveletfilterGPU(Framebuffer frame, DenoiseParams params);
+KERNEL void waveletKernel(Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
+KFUNC  void waveletfilterPixel(int2 pos, Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
 
-KERNEL      void waveletKernel(float3* in, float3* out, Framebuffer frame, DenoiseParams params);
-KFUNC       void waveletfilterPixel(int2 pos, float3* in, float3* out, Framebuffer frame, DenoiseParams params);
 
 #endif

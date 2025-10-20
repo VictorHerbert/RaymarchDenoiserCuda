@@ -84,10 +84,10 @@ float sigmaNormal = 0.5;
 float minSigma = 0.1;
 float maxSigma = 1.0f;
 
-int2 shape = {512, 512};
+//int2 shape = {512, 512};
 
-std::vector<float3> render(totalSize(shape));
-std::vector<float3> normal(totalSize(shape));
+//std::vector<float3> render(totalSize(shape));
+//std::vector<float3> normal(totalSize(shape));
 
 auto previousFrameCheckpoint = std::chrono::high_resolution_clock::now();
 
@@ -99,6 +99,18 @@ Camera camera = {
 };
 
 
+Image<float3> render_img("render/cornell/1/render.png");
+Image<float3> albedo_img("render/cornell/1/albedo.png");
+Image<float3> normal_img("render/cornell/1/normal.png");
+
+int2 shape = render_img.shape;
+
+Image<float3> denoised_img(shape);
+
+CudaVector<float3> render_cv(render_img.vecBuffer);
+CudaVector<float3> albedo_cv(albedo_img.vecBuffer);
+CudaVector<float3> normal_cv(normal_img.vecBuffer);
+CudaVector<float3> denoised_cv(totalSize(shape));
 
 void renderUI() {
     using clock = std::chrono::high_resolution_clock;
@@ -173,24 +185,12 @@ void renderUI() {
         img_texture = textureFromBuffer(render_cpu.data(), shape);
     }*/
 
-    Image<float3> render_img("render/cornell/1/render.png");
-    Image<float3> albedo_img("render/cornell/1/albedo.png");
-    Image<float3> normal_img("render/cornell/1/normal.png");
-    
-    int2 shape = render_img.shape;
-
-    Image<float3> denoised_img(shape);
-
-    CudaVector<float3> render(render_img.vecBuffer);
-    CudaVector<float3> albedo(albedo_img.vecBuffer);
-    CudaVector<float3> normal(normal_img.vecBuffer);
-    CudaVector<float3> denoised(totalSize(shape));
 
     waveletfilterGPU(
-        {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
+        {shape, render_cv.data(), normal_cv.data(), albedo_cv.data(), denoised_cv.data()},
         {depth, sigmaSpace, sigmaColor, sigmaAlbedo, sigmaNormal}
     ); 
-    denoised.copyTo(denoised_img.vecBuffer);
+    denoised_cv.copyTo(denoised_img.vecBuffer);
 
     static GLuint img_texture;
     img_texture = textureFromBuffer(denoised_img.vecBuffer.data(), shape);
