@@ -5,7 +5,9 @@
 NVCC = nvcc
 CXX = $(NVCC)
 
-CXXFLAGS_LK = -w -G -g -O0 -std=c++17 -arch=sm_75 -I./include -I./include/imgui -I./include/imgui/backends
+CXXFLAGS_LK = -w -G -g -O0 -std=c++17 -arch=sm_75 \
+	-I./include -I./include/imgui -I./include/imgui/backends \
+	`pkg-config --cflags --libs opencv4`
 CXXFLAGS = $(CXXFLAGS_LK) -dc
 
 ifeq ($(OS),Windows_NT)

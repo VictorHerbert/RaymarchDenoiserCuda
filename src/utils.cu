@@ -1,5 +1,6 @@
 #include "utils.cuh"
 
+#include "third_party/helper_math.h"
 
 KFUNC int totalSize(int2 shape){
     return shape.x * shape.y;
@@ -42,9 +43,13 @@ KFUNC float3 operator*(const uchar3 &v, const float &f) {
 }
 
 KFUNC uchar3 make_uchar3(const float3 &v) {
-    return uchar3{
-        static_cast<unsigned char>(v.x),
-        static_cast<unsigned char>(v.y),
-        static_cast<unsigned char>(v.z)
-    };
+    return make_uchar3(v.x, v.y, v.z);
+}
+
+KFUNC float3 make_float3(const uchar3 &v){
+    return make_float3(v.x, v.y, v.z);
+}
+
+KFUNC float length2(const float3 &v){
+    return length(v)*length(v);
 }

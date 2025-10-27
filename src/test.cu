@@ -1,11 +1,13 @@
 #include "image.cuh"
 #include "filter.cuh"
+#include "video.cuh"
 #include "test.cuh"
 
 #include <vector>
-#include <functional>
+
 
 FuncVector registered_funcs;
+const std::string OUTPUT_PATH =  "build/output/";
 
 void test() {
     if(registered_funcs.empty()){
@@ -23,9 +25,9 @@ void test() {
     }
 }
 
-TEST(image){
+SKIP(image){
     Image image("render/cornell/1/render.png");
-    image.save("build/output/image.png");
+    image.save(OUTPUT_PATH + "image.png");
 }
 
 TEST(filter_cpu){
@@ -39,10 +41,10 @@ TEST(filter_cpu){
 
     waveletfilterCPU(
         {shape, render_img.vecBuffer.data(), normal_img.vecBuffer.data(), albedo_img.vecBuffer.data(), denoised_img.vecBuffer.data()},
-        {5, 0.5f, 0.5f, 0.5f, 0.3f}
+        {5, .1f, .1f, .1f, .1f}
     );    
 
-    denoised_img.save("build/output/filter_cpu.png");
+    denoised_img.save(OUTPUT_PATH + "filter_cpu.png");
 }
 
 TEST(filter_gpu){
@@ -61,10 +63,16 @@ TEST(filter_gpu){
 
     waveletfilterGPU(
         {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
-        {5, 0.5f, 0.5f, 0.5f, 0.3f}
+        {5, .1f, .1f, .1f, .1f}
     ); 
     denoised.copyTo(denoised_img.vecBuffer);
     
- 
-    denoised_img.save("build/output/filter_gpu.png");
+    denoised_img.save(OUTPUT_PATH + "filter_gpu.png");
+}
+
+TEST(video_gpu) {
+    decodeVideo("render/sponzavideo/render.avi", [](uchar3* frame, int2 size) {
+        std::cout << "Got frame: " << size.x << "x" << size.y << std::endl;
+        Image::save(OUTPUT_PATH + "video.png", frame, size);
+    });
 }

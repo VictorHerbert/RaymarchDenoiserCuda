@@ -10,6 +10,6 @@
 
 int window();
 void renderUI();
-GLuint textureFromBuffer(float3* image, int2 shape);
+GLuint textureFromBuffer(uchar3* image, int2 shape);
 
 #endif

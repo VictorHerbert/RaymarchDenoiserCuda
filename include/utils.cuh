@@ -12,6 +12,24 @@
 #define GL_RGB32F 0x8815
 #endif
 
+#define CHECK_CUDA(call) do { \
+    CUresult err = call; \
+    if (err != CUDA_SUCCESS) { \
+        const char* errStr; \
+        cuGetErrorString(err, &errStr); \
+        std::cerr << "CUDA error: " << errStr << " at " << __LINE__ << std::endl; \
+        exit(1); \
+    } \
+} while(0)
+
+#define MEASURE_TIME_MS(code_block, elapsed_var)           \
+    do {                                                   \
+        auto start = std::chrono::high_resolution_clock::now(); \
+        code_block;                                        \
+        auto end = std::chrono::high_resolution_clock::now();   \
+        elapsed_var = std::chrono::duration<double, std::milli>(end - start).count(); \
+    } while(0)
+
 typedef unsigned char uchar;
 
 KFUNC int totalSize(int2 shape);
@@ -36,17 +54,8 @@ KFUNC float3 operator*(const uchar3 &v, const float &f);
 
 KFUNC uchar3 make_uchar3(const float3 &v);
 
-#define MEASURE_TIME_MS(code_block, elapsed_var)           \
-    do {                                                   \
-        auto start = std::chrono::high_resolution_clock::now(); \
-        code_block;                                        \
-        auto end = std::chrono::high_resolution_clock::now();   \
-        elapsed_var = std::chrono::duration<double, std::milli>(end - start).count(); \
-    } while(0)
+KFUNC float3 make_float3(const uchar3 &v);
 
-
-//#include "third_party/helper_math.h"
-
-
+KFUNC float length2(const float3 &v);
 
 #endif

@@ -19,7 +19,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/main",
-            "args": ["-gui"],
+            "args": ["-t"],
             "preLaunchTask": "Make",
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

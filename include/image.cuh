@@ -23,13 +23,12 @@ struct Image{
     int2 shape;
     std::vector<uchar3> vecBuffer;
 
-    Image(int2 shape){
-        this->shape = shape;
-        vecBuffer.resize(totalSize(shape));
-    }
+    Image(int2 shape);
+    Image(uchar3* data, int2 shape);
     Image(std::string filename);
     
     void save(std::string filename);
+    static void save(std::string filename, uchar3* data, int2 shape);
 };
 
 #endif

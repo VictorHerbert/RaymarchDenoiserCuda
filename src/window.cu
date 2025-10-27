@@ -1,5 +1,11 @@
 #include "window.cuh"
 
+#include "third_party/helper_math.h"
+#include "image.cuh"
+#include "filter.cuh"
+#include "math.h"
+#include "raymarch.cuh"
+
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -7,12 +13,6 @@
 
 #include <iostream>
 #include <chrono>
-
-#include "third_party/helper_math.h"
-#include "image.cuh"
-#include "filter.cuh"
-#include "math.h"
-#include "raymarch.cuh"
 
 GLuint image_texture;
 int display_w, display_h;
@@ -76,41 +76,33 @@ bool denoiseCPU = false;
 int kersize = 2;
 int depth = 1;
 bool cpu = false;
-float sigmaSpace = 0.5f;
-float sigmaColor = 0.5f;
-float sigmaAlbedo = 0.5f;
-float sigmaNormal = 0.5;
 
-float minSigma = 0.1;
-float maxSigma = 1.0f;
-
-//int2 shape = {512, 512};
-
-//std::vector<float3> render(totalSize(shape));
-//std::vector<float3> normal(totalSize(shape));
+DenoiseParams denoiseParams = {5, .5, .5, .5, .5};
+float minSigma = 0.05;
+float maxSigma = 2.0f;
 
 auto previousFrameCheckpoint = std::chrono::high_resolution_clock::now();
 
 Camera camera = {
-    {0,-.5,-2}, // .pos 
+    {0,-.5,-2}, // .pos
     {0,0,1},    // forward
     {1,1},      // plane
     1           // dist
 };
 
 
-Image<float3> render_img("render/cornell/1/render.png");
-Image<float3> albedo_img("render/cornell/1/albedo.png");
-Image<float3> normal_img("render/cornell/1/normal.png");
+Image render_img("render/cornell/1/render.png");
+Image albedo_img("render/cornell/1/albedo.png");
+Image normal_img("render/cornell/1/normal.png");
 
 int2 shape = render_img.shape;
 
-Image<float3> denoised_img(shape);
+Image denoised_img(shape);
 
-CudaVector<float3> render_cv(render_img.vecBuffer);
-CudaVector<float3> albedo_cv(albedo_img.vecBuffer);
-CudaVector<float3> normal_cv(normal_img.vecBuffer);
-CudaVector<float3> denoised_cv(totalSize(shape));
+CudaVector<uchar3> render_cv(render_img.vecBuffer);
+CudaVector<uchar3> albedo_cv(albedo_img.vecBuffer);
+CudaVector<uchar3> normal_cv(normal_img.vecBuffer);
+CudaVector<uchar3> denoised_cv(totalSize(shape));
 
 void renderUI() {
     using clock = std::chrono::high_resolution_clock;
@@ -120,7 +112,7 @@ void renderUI() {
 
     const float aspect_ratio = (float)shape.x / (float)shape.y; // image ratio
     ImGui::SetNextWindowSizeConstraints(
-        ImVec2(200, 200), 
+        ImVec2(200, 200),
         ImVec2(display_w, display_h),
         [](ImGuiSizeCallbackData* data) {
             float aspect = *((float*)data->UserData);
@@ -153,7 +145,7 @@ void renderUI() {
 
 // -------------------------------------------------------------------------------
 
-    /*static std::vector<Solid> solids = {
+    static std::vector<Solid> solids = {
         {Light,     {0,1,0}, {.3,.3,.3}, {0,0,1}},
 
         {Box,      {0,-1,0},  {1,0.01,1},   {1,1,1}},
@@ -165,35 +157,25 @@ void renderUI() {
         {Box,       {-0.15,-0.25,0.15},  {0.2,0.25,0.2},   {0,0,1}},
         {Box,       {0.2,-0.35,-0.1},    {0.15,0.35,0.15}, {1,1,0}}
     };
-    
+
     static CudaVector<Solid> scene(solids.size());
-    static CudaVector<float3> render(totalSize(shape)), normal(totalSize(shape)), albedo(totalSize(shape));
- 
-    static std::vector<float3> render_cpu(totalSize(shape));
+    static CudaVector<uchar3> render(totalSize(shape)), normal(totalSize(shape)), albedo(totalSize(shape));
+    static CPUVector<uchar3> render_cpu(totalSize(shape));
 
-    static GLuint img_texture;
-
-    static bool update = true;
-
-    if(raymarchCPU){
-
-    }
-    else {
-        scene.copy(solids);
-        raymarchSceneGPU(camera, {scene.size(), scene.data()}, {shape, render.data(), normal.data(), albedo.data(), nullptr});
-        //cudaMemcpy(render_cpu.data(), render.data, sizeof(float3)*totalSize(shape), cudaMemcpyDeviceToHost);
-        img_texture = textureFromBuffer(render_cpu.data(), shape);
-    }*/
-
-
-    waveletfilterGPU(
+    scene.copy(solids);
+    raymarchSceneGPU(camera, {scene.size(), scene.data()}, {shape, render.data(), normal.data(), albedo.data(), nullptr});
+    render.copyTo(render_cpu);
+    
+    GLuint img_texture = textureFromBuffer(render_cpu.data(), shape);
+    
+    /*waveletfilterGPU(
         {shape, render_cv.data(), normal_cv.data(), albedo_cv.data(), denoised_cv.data()},
-        {depth, sigmaSpace, sigmaColor, sigmaAlbedo, sigmaNormal}
-    ); 
+        denoiseParams
+    );
     denoised_cv.copyTo(denoised_img.vecBuffer);
 
     static GLuint img_texture;
-    img_texture = textureFromBuffer(denoised_img.vecBuffer.data(), shape);
+    img_texture = textureFromBuffer(denoised_img.vecBuffer.data(), shape);*/
 
 
 // -------------------------------------------------------------------------------
@@ -235,13 +217,13 @@ void renderUI() {
 
     ImGui::SeparatorText("Scene");
 
-    if(ImGui::CollapsingHeader("Camera")){
+    /*if(ImGui::CollapsingHeader("Camera")){
         ImGui::DragFloat3("Pos", (float*) &camera.pos, .1);
         ImGui::DragFloat3("Dir", (float*) &camera.forward, .1);
         ImGui::DragFloat2("Plane", (float*) &camera.plane, .1);
         ImGui::DragFloat("Dist", (float*) &camera.dist, .1);
-    }
-    camera.forward = normalize(camera.forward);
+    };
+    camera.forward = normalize(camera.forward);*/
     float dummy []= {.5,.5,.5};
 
     const char* objTypeNames[] = {"Light", "Sphere", "Box"};
@@ -265,18 +247,18 @@ void renderUI() {
     if(ImGui::CollapsingHeader("Denoising")){
         ImGui::Checkbox("CPU Denoise", &denoiseCPU);
         ImGui::Spacing();
-        ImGui::SliderInt("Iterations", &depth, 0, 10);
+        ImGui::SliderInt("Iterations", &denoiseParams.depth, 0, 10);
         ImGui::Spacing();
-        ImGui::SliderFloat("Sigma Color", &sigmaColor, minSigma, maxSigma);
-        ImGui::SliderFloat("Sigma Albedo", &sigmaAlbedo, minSigma, maxSigma);
-        ImGui::SliderFloat("Sigma Normal", &sigmaNormal, minSigma, maxSigma);
+        ImGui::SliderFloat("Sigma Color", &denoiseParams.sigmaColor, .05, .2);
+        ImGui::SliderFloat("Sigma Albedo", &denoiseParams.sigmaAlbedo, minSigma, maxSigma);
+        ImGui::SliderFloat("Sigma Normal", &denoiseParams.sigmaNormal, minSigma, maxSigma);
     }
 
     ImGui::End();
     ImGui::Render();
 }
 
-GLuint textureFromBuffer(float3* image, int2 shape){
+GLuint textureFromBuffer(uchar3* image, int2 shape){
     GLuint tex_id;
     glGenTextures(1, &tex_id);
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -284,7 +266,7 @@ GLuint textureFromBuffer(float3* image, int2 shape){
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, shape.x, shape.y, 0, GL_RGB, GL_FLOAT, image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, shape.x, shape.y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
     return tex_id;
 }

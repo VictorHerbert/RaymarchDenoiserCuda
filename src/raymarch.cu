@@ -111,7 +111,7 @@ void raymarchSceneGPU(Camera camera, Scene scene, Framebuffer framebuffer){
     dim3 gridSize((framebuffer.shape.x + 15) / 16, (framebuffer.shape.y + 15) / 16);
     
     raymarchSceneKernel<<<gridSize,blockSize>>>(camera, scene, framebuffer);
-    //cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 }
 
 
@@ -125,7 +125,6 @@ KERNEL void raymarchSceneKernel(Camera camera, Scene scene, Framebuffer framebuf
     if(pos.x >= framebuffer.shape.x || pos.y >= framebuffer.shape.y)
         return;
     
-    
     raymarchScenePixel(pos, camera, scene, framebuffer);
 }
 
@@ -134,10 +133,8 @@ KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebu
     Ray ray = {camera.pos, normalize(worldPos - camera.pos)};
     RenderData data = raymarchRay(ray, scene);
 
-    framebuffer.render[index(pixelPos, framebuffer.shape)] = data.col;
-    framebuffer.normal[index(pixelPos, framebuffer.shape)] = data.normal;
-
-    //framebuffer.render[index(pixelPos, framebuffer.shape)] = {255, 0, 0};
+    framebuffer.render[index(pixelPos, framebuffer.shape)] = make_uchar3(data.col*255);
+    framebuffer.normal[index(pixelPos, framebuffer.shape)] = make_uchar3(data.normal*255);  
 }
 
 
