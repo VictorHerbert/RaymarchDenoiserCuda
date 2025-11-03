@@ -40,15 +40,10 @@ void waveletfilterCPU(Framebuffer frame, DenoiseParams params){
     }
 }
 
-float square(float f){
-    return f*f;
-}
-
 void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
     dim3 blockSize(16, 16);
     dim3 gridSize((frame.shape.x + 15) / 16, (frame.shape.y + 15) / 16);
     float scaleSigma = 3*255*2;
-    scaleSigma = 1;
     DenoiseParams pixelParams{
         params.depth,
         params.sigmaSpace * scaleSigma,
@@ -70,11 +65,13 @@ void waveletfilterGPU(Framebuffer frame, DenoiseParams params){
             (i == (params.depth - 1)) ? frame.denoised : buffer[(i+1)%2],
             frame, pixelParams);
 
+        //printf("%x %x\n", (i == 0) ? frame.render : buffer[i%2], (i == (params.depth - 1)) ? frame.denoised : buffer[(i+1)%2]);
+
         cudaDeviceSynchronize();
     }
 }
 
-KERNEL void waveletKernel(Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
+KERNEL void waveletKernel(const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
@@ -86,12 +83,32 @@ KERNEL void waveletKernel(Pixel* in, Pixel* out, Framebuffer frame, DenoiseParam
     waveletfilterPixel(pos, in, out, frame, params);
 }
 
+KERNEL void waveletLevelsKernel(Framebuffer frame, DenoiseParams params){
+    int2 pos = {
+        blockIdx.x * blockDim.x + threadIdx.x,
+        blockIdx.y * blockDim.y + threadIdx.y
+    };
 
-float normalLenght(float3 v){
+    if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
+        return;
+
+    for(int i = 0; i < params.depth; i++){
+        params.step = 1<<i;
+        waveletfilterPixel(
+            pos,
+            (i == 0) ? frame.render : frame.buffer[i%2],
+            (i == (params.depth - 1)) ? frame.denoised : frame.buffer[(i+1)%2],
+            frame, params);
+
+        __syncthreads();
+    }
+}
+
+KFUNC float normalLenght(float3 v){
     return length(v/255.0);
 }
 
-KFUNC void waveletfilterPixel(int2 pos, Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
+KFUNC void waveletfilterPixel(int2 pos, const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params){
     const float h[3] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
 
     float3 acum = {0, 0, 0};
@@ -121,13 +138,13 @@ KFUNC void waveletfilterPixel(int2 pos, Pixel* in, Pixel* out, Framebuffer frame
             float wWavelet = h[abs(d.x)]*h[(abs(d.y))];
 
             float w = wWavelet*exp(-wCol-wSpace-wAlbedo-wNormal);
-            w = 1;
 
             acum += w*in[index(n, frame.shape)];
             norm += w;
         }
     }
     acum /= norm;
-    //clamp(acum, {0,0,0}, {255, 255, 255});
-    out[index(pos, frame.shape)] = make_uchar3(acum*255);
+    //printf("%f\n", acum);
+    out[index(pos, frame.shape)] = make_uchar3(acum);
+    
 }

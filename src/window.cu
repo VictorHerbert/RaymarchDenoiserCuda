@@ -162,7 +162,7 @@ void renderUI() {
     static CudaVector<uchar3> render(totalSize(shape)), normal(totalSize(shape)), albedo(totalSize(shape));
     static CPUVector<uchar3> render_cpu(totalSize(shape));
 
-    scene.copy(solids);
+    scene.from(solids);
     raymarchSceneGPU(camera, {scene.size(), scene.data()}, {shape, render.data(), normal.data(), albedo.data(), nullptr});
     render.copyTo(render_cpu);
     

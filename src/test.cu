@@ -7,51 +7,63 @@
 
 
 FuncVector registered_funcs;
-const std::string OUTPUT_PATH =  "build/output/";
+const std::string OUTPUT_PATH =  "test/";
 
 void test() {
     if(registered_funcs.empty()){
         std::cout << "No tests found" << std::endl;
         return;
     }
+    std::cout << registered_funcs.size() << " tests found" << std::endl;
     for (auto& [name, func] : registered_funcs) {
-        std::cout << "TEST " << name << "\t: ";
         try {
+            auto start = std::chrono::high_resolution_clock::now();
             func();
-            std::cout << "passed" << std::endl;
-        } catch (...) {
-            std::cout << "failed" << std::endl;
+            auto end = std::chrono::high_resolution_clock::now();
+            double frameTime = std::chrono::duration<double, std::milli>(end - start).count();
+
+            std::cout << "TEST " << name << ": passed with " << frameTime << " ms" <<std::endl;
+        }
+        catch (const std::runtime_error& e) {
+            std::cout << "TEST " << name << ": failed \nREASON: " << e.what() << std::endl;
+        }
+        catch (...) {
+            std::cout << "TEST " << name << ": failed" << std::endl;
         }
     }
 }
 
-SKIP(image){
+SKIP(image_open){
+    Image image("render/cornell/1/render.png");
+}
+
+SKIP(image_open_save){
     Image image("render/cornell/1/render.png");
     image.save(OUTPUT_PATH + "image.png");
 }
 
-TEST(filter_cpu){
+SKIP(filter_cpu){
     Image render_img("render/cornell/1/render.png");
     Image albedo_img("render/cornell/1/albedo.png");
     Image normal_img("render/cornell/1/normal.png");
-    
+
     int2 shape = render_img.shape;
 
     Image denoised_img(shape);
 
     waveletfilterCPU(
         {shape, render_img.vecBuffer.data(), normal_img.vecBuffer.data(), albedo_img.vecBuffer.data(), denoised_img.vecBuffer.data()},
-        {5, .1f, .1f, .1f, .1f}
-    );    
+        {5, 0, .1f, .1f, .1f, .1f}
+    );
 
     denoised_img.save(OUTPUT_PATH + "filter_cpu.png");
 }
 
-TEST(filter_gpu){
+SKIP(filter_gpu){
     Image render_img("render/cornell/1/render.png");
     Image albedo_img("render/cornell/1/albedo.png");
     Image normal_img("render/cornell/1/normal.png");
-    
+
     int2 shape = render_img.shape;
 
     Image denoised_img(shape);
@@ -63,16 +75,105 @@ TEST(filter_gpu){
 
     waveletfilterGPU(
         {shape, render.data(), normal.data(), albedo.data(), denoised.data()},
-        {5, .1f, .1f, .1f, .1f}
-    ); 
+        {2, 0, .1f, .1f, .1f, .1f}
+    );
     denoised.copyTo(denoised_img.vecBuffer);
-    
+
     denoised_img.save(OUTPUT_PATH + "filter_gpu.png");
 }
 
-TEST(video_gpu) {
-    decodeVideo("render/sponzavideo/render.avi", [](uchar3* frame, int2 size) {
-        std::cout << "Got frame: " << size.x << "x" << size.y << std::endl;
-        Image::save(OUTPUT_PATH + "video.png", frame, size);
-    });
+SKIP(video_gpu){
+    int2 shape = {1920, 1080};
+    int pixelCount = totalSize(shape);
+
+    CudaVector<uchar3> render(pixelCount), albedo(pixelCount), normal(pixelCount), denoised(pixelCount);
+    Framebuffer frame = {shape, render.data(), albedo.data(), normal.data(), denoised.data()};
+    Image denoised_img(shape);
+
+    DenoiseParams params = {2, 0, .1f, .1f, .1f, .1f};
+
+    for(int frameIdx = 1; frameIdx < 5; frameIdx++){
+        auto start = std::chrono::high_resolution_clock::now();
+        render.from(Image("render/sponza/render/" + std::to_string(frameIdx) + ".png").vecBuffer);
+        albedo.from(Image("render/sponza/albedo/" + std::to_string(frameIdx) + ".png").vecBuffer);
+        normal.from(Image("render/sponza/normal/" + std::to_string(frameIdx) + ".png").vecBuffer);
+        auto bp1 = std::chrono::high_resolution_clock::now();
+
+        waveletfilterGPU(frame, params);
+
+        cudaMemcpy(denoised_img.vecBuffer.data(), frame.denoised, sizeof(uchar3) * totalSize(shape), cudaMemcpyDeviceToHost);
+        denoised_img.save(OUTPUT_PATH + "video_gpu" + std::to_string(frameIdx) + ".png");
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        double frameTime = std::chrono::duration<double, std::milli>(end - start).count();
+        double diskTime = std::chrono::duration<double, std::milli>(bp1 - start).count();
+        double cudaTime = std::chrono::duration<double, std::milli>(end - bp1).count();
+
+        printf("Frame %i: disk %f kernel %f frame %f ms\n", frameIdx, diskTime, cudaTime, frameTime);
+    }
 }
+
+
+TEST(video_gpu_stream){
+    const int2 shape = {1920, 1080};
+    const dim3 blockSize(16, 16);
+    const int streamCount = 5;
+    int frameCount = 5;
+
+    int frameOutput[streamCount];
+
+    dim3 gridSize((shape.x + 15) / 16, (shape.y + 15) / 16);
+    int pixelCount = totalSize(shape);
+    int byteCount = sizeof(Pixel) * pixelCount;
+
+    float scaleSigma = 3*255*2;
+    DenoiseParams params = {2, 0, .1f*scaleSigma, .1f*scaleSigma, .1f*scaleSigma, .1f*scaleSigma};
+
+    CudaFramebuffer frames[streamCount];
+    cudaStream_t streams[streamCount];
+
+    for(int i = 0; i < streamCount; i++){
+        frames[i].allocate(shape);
+        cudaStreamCreate(&streams[i]);
+        frameOutput[i] = -1;
+    }
+
+    for(int frameIdx = 1; frameIdx < frameCount; frameIdx++){
+        int streamIdx = frameIdx%streamCount;
+        auto& frame = frames[streamIdx];
+        auto stream = streams[streamIdx];
+
+        if(frameOutput[streamIdx] != -1){
+            cudaStreamSynchronize(streams[streamIdx]);
+
+            saveImage(
+                OUTPUT_PATH + "video_gpu_stream" + std::to_string(frameOutput[streamIdx]) + ".png",
+                frames[frameOutput[streamIdx]%streamCount].denoisedVecCpu.data(), shape);
+            
+            frameOutput[streamIdx] = -1;
+        }
+
+        frame.openImages("render/sponza/$type$/" + std::to_string(frameIdx) + ".png");
+
+        waveletLevelsKernel<<<gridSize, blockSize, 0, stream>>>(frame, params);
+
+        cudaMemcpyAsync(frame.denoisedVecCpu.data(), frame.denoisedVec.data(), sizeof(Pixel) * totalSize(shape), cudaMemcpyDeviceToHost, stream);
+
+        frameOutput[streamIdx] = frameIdx;
+    }
+
+    for(int frameIdx = 1; frameIdx < frameCount; frameIdx++){
+        if(frameOutput[frameIdx] != -1){
+            cudaStreamSynchronize(streams[frameIdx%streamCount]);
+
+            saveImage(
+                OUTPUT_PATH + "video_gpu_stream" + std::to_string(frameIdx) + ".png",
+                frames[frameOutput[frameIdx]%streamCount].denoisedVecCpu.data(), shape);
+        }
+    }
+
+    for(int i = 0; i < streamCount; i++)
+        cudaStreamDestroy(streams[i]);
+}
+

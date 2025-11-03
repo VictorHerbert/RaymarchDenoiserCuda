@@ -7,7 +7,6 @@ CXX = $(NVCC)
 
 CXXFLAGS_LK = -w -G -g -O0 -std=c++17 -arch=sm_75 \
 	-I./include -I./include/imgui -I./include/imgui/backends \
-	`pkg-config --cflags --libs opencv4`
 CXXFLAGS = $(CXXFLAGS_LK) -dc
 
 ifeq ($(OS),Windows_NT)
@@ -82,16 +81,28 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
 	@$(NVCC) $(CXXFLAGS) -c $< -o $@
 
+
+# =========================
+# Tasks
+# =========================
+
+memcheck: $(TARGET)
+	compute-sanitizer --tool memcheck --show-backtrace=yes --log-file $(BUILD_DIR)/memcheck.log ./$(TARGET) -t
+
 doxygen:
 	doxygen Doxyfile
-
 
 # =========================
 # Clean
 # =========================
+test_clean: $(TARGET)
+	@$(RM) -rf test/*
+	@./$(TARGET) -t
+
 clean:
 	$(RM) -rf $(BUILD_DIR)/*
+	$(RM) -rf test/*
 	$(MKDIR) -p build/imgui/backends
-	$(MKDIR) -p build/output
+	$(MKDIR) -p test
 
-.PHONY: render all clean run
+.PHONY: render all clean run test

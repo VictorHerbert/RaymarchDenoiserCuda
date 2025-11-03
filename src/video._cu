@@ -5,6 +5,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <regex>
 
 void decodeVideo(std::string filepath, void (*callback)(uchar3*, int2)){
     cv::VideoCapture cap(filepath);
@@ -28,10 +29,11 @@ void decodeVideo(std::string filepath, void (*callback)(uchar3*, int2)){
     cap.release();
 }
 
-void decodeFrambuffer(std::string filepath, void (*callback)(Framebuffer)){
-    cv::VideoCapture renderCap(filepath);
-    cv::VideoCapture normalCap(filepath);
-    cv::VideoCapture albedoCap(filepath);
+void decodeFramebuffer(std::string filepath, void (*callback)(Framebuffer)){
+    std::regex pattern(R"(\$type\$)");
+    cv::VideoCapture renderCap(std::regex_replace(filepath, pattern, "render"));
+    cv::VideoCapture normalCap(std::regex_replace(filepath, pattern, "normal"));
+    cv::VideoCapture albedoCap(std::regex_replace(filepath, pattern, "albedo"));
 
     if (!renderCap.isOpened() || normalCap.isOpened() || !albedoCap.isOpened()) {
         throw std::runtime_error("Cannot open videos");

@@ -30,7 +30,7 @@ public:
     const T* data() const;
     size_t size() const;
 
-    void copy(const CPUVector<T>& v);
+    void from(const CPUVector<T>& v);
     void copyTo(CPUVector<T>& v);
     void resize(size_t size);
     ~CudaVector();
@@ -63,7 +63,7 @@ template <typename T>
 size_t CudaVector<T>::size() const {return size_p;}
 
 template <typename T>
-void CudaVector<T>::copy(const CPUVector<T>& v) {
+void CudaVector<T>::from(const CPUVector<T>& v) {
     if (v.size() != size_p)
         throw std::runtime_error("Size mismatch");
     cudaMemcpy(data_p, v.data(), size_p * sizeof(T), cudaMemcpyHostToDevice);
@@ -78,7 +78,8 @@ void CudaVector<T>::resize(size_t size) {
 
 template <typename T>
 CudaVector<T>::~CudaVector() {
-    cudaFree(data_p);
+    if(size_p != 0)
+        cudaFree(data_p);
 }
 
 template <typename T>

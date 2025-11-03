@@ -8,10 +8,8 @@
 #include "third_party/helper_math.h"
 
 struct DenoiseParams {
-    union {
-        int depth;
-        int step;
-    };
+    int depth;
+    int step;
     float sigmaSpace;
     float sigmaColor;
     float sigmaAlbedo;
@@ -27,10 +25,12 @@ KFUNC float lum(float3 col);
 float3 snrCPU(Pixel* original, Pixel* noisy, int2 shape);
 float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
 
+void gaussianfilterGPU(Framebuffer frame, DenoiseParams params);
 void waveletfilterCPU(Framebuffer frame, DenoiseParams params);
 void waveletfilterGPU(Framebuffer frame, DenoiseParams params);
-KERNEL void waveletKernel(Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
-KFUNC  void waveletfilterPixel(int2 pos, Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
+KERNEL void waveletKernel(const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
+KERNEL void waveletLevelsKernel(Framebuffer frame, DenoiseParams params);
+KFUNC  void waveletfilterPixel(int2 pos, const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
 
 
 #endif

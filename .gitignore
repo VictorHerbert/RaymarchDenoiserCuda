@@ -3,4 +3,5 @@ glfw3.dll
 glfw3dll.lib
 imgui.ini
 vc140.pdb
-render/sponzavideo/render.avi
+render/
+test/*
