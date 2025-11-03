@@ -1,6 +1,5 @@
 #include "image.cuh"
 #include "filter.cuh"
-#include "video.cuh"
 #include "test.cuh"
 
 #include <vector>
@@ -118,8 +117,10 @@ SKIP(video_gpu){
 TEST(video_gpu_stream){
     const int2 shape = {1920, 1080};
     const dim3 blockSize(16, 16);
-    const int streamCount = 5;
-    int frameCount = 5;
+    int frameCount = 20;
+    int streamCount = 5;
+    streamCount = min(frameCount, streamCount);
+    
 
     int frameOutput[streamCount];
 
@@ -139,37 +140,25 @@ TEST(video_gpu_stream){
         frameOutput[i] = -1;
     }
 
-    for(int frameIdx = 1; frameIdx < frameCount; frameIdx++){
+    for(int frameIdx = 0; frameIdx < frameCount + streamCount; frameIdx++){
         int streamIdx = frameIdx%streamCount;
+        int videoIdx = (frameIdx-streamCount)%streamCount;
         auto& frame = frames[streamIdx];
         auto stream = streams[streamIdx];
 
-        if(frameOutput[streamIdx] != -1){
+        if(frameIdx >= streamCount){
             cudaStreamSynchronize(streams[streamIdx]);
 
             saveImage(
-                OUTPUT_PATH + "video_gpu_stream" + std::to_string(frameOutput[streamIdx]) + ".png",
-                frames[frameOutput[streamIdx]%streamCount].denoisedVecCpu.data(), shape);
-            
-            frameOutput[streamIdx] = -1;
+                OUTPUT_PATH + "video_gpu_stream" + std::to_string(videoIdx + 1) + ".png",
+                frame.denoisedCPU, shape);
         }
+        if(frameIdx < frameCount){
+            frame.openImages("render/sponza/$type$/" + std::to_string(frameIdx+1) + ".png");
 
-        frame.openImages("render/sponza/$type$/" + std::to_string(frameIdx) + ".png");
+            waveletLevelsKernel<<<gridSize, blockSize, 0, stream>>>(frame, params);
 
-        waveletLevelsKernel<<<gridSize, blockSize, 0, stream>>>(frame, params);
-
-        cudaMemcpyAsync(frame.denoisedVecCpu.data(), frame.denoisedVec.data(), sizeof(Pixel) * totalSize(shape), cudaMemcpyDeviceToHost, stream);
-
-        frameOutput[streamIdx] = frameIdx;
-    }
-
-    for(int frameIdx = 1; frameIdx < frameCount; frameIdx++){
-        if(frameOutput[frameIdx] != -1){
-            cudaStreamSynchronize(streams[frameIdx%streamCount]);
-
-            saveImage(
-                OUTPUT_PATH + "video_gpu_stream" + std::to_string(frameIdx) + ".png",
-                frames[frameOutput[frameIdx]%streamCount].denoisedVecCpu.data(), shape);
+            cudaMemcpyAsync(frame.denoisedCPU, frame.denoised, sizeof(Pixel) * totalSize(shape), cudaMemcpyDeviceToHost, stream);
         }
     }
 

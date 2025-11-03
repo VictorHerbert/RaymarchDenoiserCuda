@@ -63,7 +63,8 @@ void Image::save(std::string filename, uchar3* data, int2 shape){
     }
 }
 
-CudaFramebuffer::CudaFramebuffer(){
+CudaFramebuffer::~CudaFramebuffer(){
+    cudaFreeHost(denoisedCPU);
 }
 
 CudaFramebuffer::CudaFramebuffer(int2 shape){
@@ -76,7 +77,6 @@ CudaFramebuffer::CudaFramebuffer(int2 shape){
     normalVec.resize(size);
     denoisedVec.resize(size);
     bufferVec.resize(2*size);
-    denoisedVecCpu.resize(size);
 
     render = renderVec.data();
     albedo = albedoVec.data();
@@ -96,7 +96,7 @@ void CudaFramebuffer::allocate(int2 shape){
     normalVec.resize(size);
     denoisedVec.resize(size);
     bufferVec.resize(2*size);
-    denoisedVecCpu.resize(size);
+    cudaMallocHost(&denoisedCPU, size * sizeof(Pixel));
 
     render = renderVec.data();
     albedo = albedoVec.data();

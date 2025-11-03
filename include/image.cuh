@@ -45,9 +45,11 @@ struct CPUFramebuffer : Framebuffer{
 struct CudaFramebuffer : Framebuffer {
     CudaVector<Pixel> renderVec, albedoVec, normalVec, denoisedVec;
     CudaVector<Pixel> bufferVec;
-    CPUVector<Pixel> denoisedVecCpu;
+    //CPUVector<Pixel> denoisedVecCpu; // TODO remove
+    Pixel* denoisedCPU;
 
-    CudaFramebuffer();
+    CudaFramebuffer(){};
+    ~CudaFramebuffer();
     CudaFramebuffer (int2 shape);
 
     void allocate(int2 shape);

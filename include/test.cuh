@@ -2,6 +2,7 @@
 #define TEST_H
 
 #include <functional>
+#include <string>
 
 typedef std::vector<std::pair<std::string, std::function<void()>>> FuncVector;
 
