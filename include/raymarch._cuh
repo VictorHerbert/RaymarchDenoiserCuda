@@ -41,18 +41,18 @@ struct RenderData{
     float3 light;
 };
 
-//KFUNC float sdfSphere(float3 pos, float r);
-//KFUNC float sdfBox(float3 pos, float3 dim);
+//CUDA_FUNC float sdfSphere(float3 pos, float r);
+//CUDA_FUNC float sdfBox(float3 pos, float3 dim);
 
 void raymarchSceneCPU(Camera camera, Scene scene, Framebuffer frame);
 void raymarchSceneGPU(Camera camera, Scene scene, Framebuffer frame);
 KERNEL void raymarchSceneKernel(Camera camera, Scene scene, Framebuffer frame);
-KFUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer);
+CUDA_FUNC void raymarchScenePixel(int2 pixelPos, Camera camera, Scene scene, Framebuffer framebuffer);
 
-KFUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camera);
-KFUNC RenderData raymarchPoint(float3 pos, Scene scene);
-KFUNC float3 raymarchNormal(float3 p, Scene scene);
-KFUNC RenderData raymarchRay(Ray ray, Scene scene);
-KFUNC float3 ambientLight(float3 normal, Scene scene);
+CUDA_FUNC float3 viewportToWorld(int2 pos, int2 shape, Camera camera);
+CUDA_FUNC RenderData raymarchPoint(float3 pos, Scene scene);
+CUDA_FUNC float3 raymarchNormal(float3 p, Scene scene);
+CUDA_FUNC RenderData raymarchRay(Ray ray, Scene scene);
+CUDA_FUNC float3 ambientLight(float3 normal, Scene scene);
 
 #endif

@@ -14,10 +14,10 @@ typedef uchar3 Pixel;
 struct Framebuffer{
     int2 shape;
     Pixel* render;
+    Pixel* denoised;
     Pixel* normal;
     Pixel* albedo;
-    Pixel* denoised;
-
+    
     Pixel* buffer[2];
 };
 

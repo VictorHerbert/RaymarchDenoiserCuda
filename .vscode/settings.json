@@ -87,6 +87,7 @@
         "thread": "cpp",
         "regex": "cpp",
         "bitset": "cpp",
-        "*._cuh": "cpp"
+        "*._cuh": "cpp",
+        "*._cu": "cpp"
     }
 }

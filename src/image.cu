@@ -53,13 +53,13 @@ Image::Image(std::string filename){
 
 void Image::save(std::string filename){
     if(!stbi_write_png(filename.c_str(), shape.x, shape.y, 3, vecBuffer.data(), shape.x * 3)){
-        throw std::runtime_error("Failed to save image" + filename + "': " + stbi_failure_reason());
+        throw std::runtime_error("Failed to save image " + filename + "': " + stbi_failure_reason());
     }
 }
 
 void Image::save(std::string filename, uchar3* data, int2 shape){
     if(!stbi_write_png(filename.c_str(), shape.x, shape.y, 3, data, shape.x * 3)){
-        throw std::runtime_error("Failed to save image" + filename + "': " + stbi_failure_reason());
+        throw std::runtime_error("Failed to save image " + filename + "': " + stbi_failure_reason());
     }
 }
 

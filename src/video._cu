@@ -1,63 +1,60 @@
 #include "video.cuh"
 #include "image.cuh"
 
-#include <opencv2/opencv.hpp>
-
 #include <string>
 #include <stdexcept>
 #include <regex>
 
-void decodeVideo(std::string filepath, void (*callback)(uchar3*, int2)){
-    cv::VideoCapture cap(filepath);
-    if (!cap.isOpened()) {
-        throw std::runtime_error("Cannot open video");
+void waveletFilterSequence(std::string inputPath, std::string outputPath){
+    int streamCount = 5;
+    const int2 shape = {1920, 1080};
+    const dim3 blockSize(16, 16);
+    const int frameCount = 20;
+    //TODO get shape from
+
+    CPUVector<int> frameOutput(streamCount);
+
+    dim3 gridSize((shape.x + 15) / 16, (shape.y + 15) / 16);
+    int pixelCount = totalSize(shape);
+    int byteCount = sizeof(Pixel) * pixelCount;
+
+    float scaleSigma = 3*255*2;
+    FilterParams params = {FilterParams::WAVELET, 2, 0, .1f*scaleSigma, .1f*scaleSigma, .1f*scaleSigma, .1f*scaleSigma};
+
+    CPUVector<CudaFramebuffer> frames(streamCount);
+    CPUVector<cudaStream_t> streams(streamCount);
+
+    std::regex pattern(R"(\$frame\$)");
+
+    for(int i = 0; i < streamCount; i++){
+        frames[i].allocate(shape);
+        cudaStreamCreate(&streams[i]);
+        frameOutput[i] = -1;
     }
 
-    cv::Mat frame;
-    while (cap.read(frame)) {
-        if (frame.empty()) break;
+    for(int frameIdx = 0; frameIdx < frameCount + streamCount; frameIdx++){
+        int streamIdx = frameIdx%streamCount;
+        int videoIdx = (frameIdx-streamCount)%streamCount;
+        auto& frame = frames[streamIdx];
+        auto stream = streams[streamIdx];
 
-        cv::Mat rgbFrame;
-        cv::cvtColor(frame, rgbFrame, cv::COLOR_BGR2RGB);
+        if(frameIdx >= streamCount){
+            cudaStreamSynchronize(streams[streamIdx]);
 
-        int2 size = { rgbFrame.cols, rgbFrame.rows };
-        uchar3* data = reinterpret_cast<uchar3*>(rgbFrame.data);
+            saveImage(
+                outputPath + std::to_string(videoIdx + 1) + ".png",
+                frame.denoisedCPU, shape);
+        }
+        if(frameIdx < frameCount){
+            frame.openImages(std::regex_replace(inputPath, pattern, std::to_string(frameIdx+1)));
 
-        callback(data, size);
+            waveletKernel<<<gridSize, blockSize, 0, stream>>>(frame, params);
+
+            cudaMemcpyAsync(frame.denoisedCPU, frame.denoised, sizeof(Pixel) * totalSize(shape), cudaMemcpyDeviceToHost, stream);
+        }
     }
 
-    cap.release();
-}
+    for(int i = 0; i < streamCount; i++)
+        cudaStreamDestroy(streams[i]);
 
-void decodeFramebuffer(std::string filepath, void (*callback)(Framebuffer)){
-    std::regex pattern(R"(\$type\$)");
-    cv::VideoCapture renderCap(std::regex_replace(filepath, pattern, "render"));
-    cv::VideoCapture normalCap(std::regex_replace(filepath, pattern, "normal"));
-    cv::VideoCapture albedoCap(std::regex_replace(filepath, pattern, "albedo"));
-
-    if (!renderCap.isOpened() || normalCap.isOpened() || !albedoCap.isOpened()) {
-        throw std::runtime_error("Cannot open videos");
-    }
-
-    cv::Mat renderFrame, normalFrame, albedoFrame;
-    while (true) {
-        renderCap.read(renderFrame);
-        normalCap.read(normalFrame);
-        albedoCap.read(albedoFrame);
-
-        if (renderFrame.empty() || normalFrame.empty() || albedoFrame.empty())
-            break;
-
-        callback({
-            {renderFrame.cols, renderFrame.rows},
-            (Pixel*) renderFrame.data,
-            (Pixel*) albedoFrame.data,
-            (Pixel*) normalFrame.data
-        });
-    }
-
-
-    renderCap.release();
-    normalCap.release();
-    albedoCap.release();
 }

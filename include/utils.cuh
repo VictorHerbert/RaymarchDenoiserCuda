@@ -5,7 +5,7 @@
 #include <iostream>
 
 #define KERNEL __global__
-#define KFUNC __host__ __device__
+#define CUDA_FUNC __host__ __device__
 #define LAUNCHER
 
 #ifndef GL_RGB32F
@@ -32,30 +32,30 @@
 
 typedef unsigned char uchar;
 
-KFUNC int totalSize(int2 shape);
+CUDA_FUNC int totalSize(int2 shape);
 
-KFUNC int totalSize(int3 shape);
+CUDA_FUNC int totalSize(int3 shape);
 
-KFUNC int inRange(int2 pos, int2 shape);
+CUDA_FUNC int inRange(int2 pos, int2 shape);
 
-KFUNC int index(int x, int y, int2 size);
+CUDA_FUNC int index(int x, int y, int2 size);
 
-KFUNC int index(int2 p, int2 size);
+CUDA_FUNC int index(int2 p, int2 size);
 
-KFUNC uchar3 operator-(const uchar3 &a, const uchar3 &b);
+CUDA_FUNC uchar3 operator-(const uchar3 &a, const uchar3 &b);
 
-KFUNC float length(const uchar3 &v);
+CUDA_FUNC float length(const uchar3 &v);
 
-KFUNC float dot(const uchar3 &a, const uchar3 &b);
+CUDA_FUNC float dot(const uchar3 &a, const uchar3 &b);
 
-KFUNC float3 operator*(const float &f, const uchar3 &v);
+CUDA_FUNC float3 operator*(const float &f, const uchar3 &v);
 
-KFUNC float3 operator*(const uchar3 &v, const float &f);
+CUDA_FUNC float3 operator*(const uchar3 &v, const float &f);
 
-KFUNC uchar3 make_uchar3(const float3 &v);
+CUDA_FUNC uchar3 make_uchar3(const float3 &v);
 
-KFUNC float3 make_float3(const uchar3 &v);
+CUDA_FUNC float3 make_float3(const uchar3 &v);
 
-KFUNC float length2(const float3 &v);
+CUDA_FUNC float length2(const float3 &v);
 
 #endif

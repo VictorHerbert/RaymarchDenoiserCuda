@@ -77,7 +77,7 @@ int kersize = 2;
 int depth = 1;
 bool cpu = false;
 
-DenoiseParams denoiseParams = {5, .5, .5, .5, .5};
+FilterParams FilterParams = {5, .5, .5, .5, .5};
 float minSigma = 0.05;
 float maxSigma = 2.0f;
 
@@ -170,7 +170,7 @@ void renderUI() {
     
     /*waveletfilterGPU(
         {shape, render_cv.data(), normal_cv.data(), albedo_cv.data(), denoised_cv.data()},
-        denoiseParams
+        FilterParams
     );
     denoised_cv.copyTo(denoised_img.vecBuffer);
 
@@ -247,11 +247,11 @@ void renderUI() {
     if(ImGui::CollapsingHeader("Denoising")){
         ImGui::Checkbox("CPU Denoise", &denoiseCPU);
         ImGui::Spacing();
-        ImGui::SliderInt("Iterations", &denoiseParams.depth, 0, 10);
+        ImGui::SliderInt("Iterations", &FilterParams.depth, 0, 10);
         ImGui::Spacing();
-        ImGui::SliderFloat("Sigma Color", &denoiseParams.sigmaColor, .05, .2);
-        ImGui::SliderFloat("Sigma Albedo", &denoiseParams.sigmaAlbedo, minSigma, maxSigma);
-        ImGui::SliderFloat("Sigma Normal", &denoiseParams.sigmaNormal, minSigma, maxSigma);
+        ImGui::SliderFloat("Sigma Color", &FilterParams.sigmaColor, .05, .2);
+        ImGui::SliderFloat("Sigma Albedo", &FilterParams.sigmaAlbedo, minSigma, maxSigma);
+        ImGui::SliderFloat("Sigma Normal", &FilterParams.sigmaNormal, minSigma, maxSigma);
     }
 
     ImGui::End();

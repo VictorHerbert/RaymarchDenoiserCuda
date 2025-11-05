@@ -7,7 +7,8 @@
 
 #include "third_party/helper_math.h"
 
-struct DenoiseParams {
+struct FilterParams {
+    enum FilterType {AVERAGE, GAUSSIAN, CROSS, WAVELET} type;
     int depth;
     int step;
     float sigmaSpace;
@@ -16,21 +17,19 @@ struct DenoiseParams {
     float sigmaNormal;
 };
 
-KFUNC float gaussian(float p, float sigma);
-KFUNC float gaussian(float2 p, float sigma);
-KFUNC float gaussian(float3 p, float sigma);
-
-KFUNC float lum(float3 col);
+CUDA_FUNC float lum(float3 col);
 
 float3 snrCPU(Pixel* original, Pixel* noisy, int2 shape);
 float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
 
-void gaussianfilterGPU(Framebuffer frame, DenoiseParams params);
-void waveletfilterCPU(Framebuffer frame, DenoiseParams params);
-void waveletfilterGPU(Framebuffer frame, DenoiseParams params);
-KERNEL void waveletKernel(const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
-KERNEL void waveletLevelsKernel(Framebuffer frame, DenoiseParams params);
-KFUNC  void waveletfilterPixel(int2 pos, const Pixel* in, Pixel* out, Framebuffer frame, DenoiseParams params);
+//void waveletfilterCPU(Framebuffer frame, FilterParams params);
+//void waveletfilterGPU(Framebuffer frame, FilterParams params);
 
+KERNEL void filterKernel(Framebuffer frame, FilterParams params);
+CUDA_FUNC void filterPixel(int2 pos, const Pixel* in, Pixel* out, const Framebuffer frame, const FilterParams params);
+CUDA_FUNC float waveletWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
+CUDA_FUNC float averageWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
+
+void waveletFilterSequence(std::string inputPath, std::string outputPath);
 
 #endif
