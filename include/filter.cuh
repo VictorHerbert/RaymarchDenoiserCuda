@@ -7,14 +7,20 @@
 
 #include "third_party/helper_math.h"
 
+#define CACHE_INPUT
+
 struct FilterParams {
     enum FilterType {AVERAGE, GAUSSIAN, CROSS, WAVELET} type;
     int depth;
-    int step;
+    int level;
+    int radius;
     float sigmaSpace;
     float sigmaColor;
     float sigmaAlbedo;
     float sigmaNormal;
+
+    bool cacheInput = true;
+    bool cacheBuffer = true;
 };
 
 CUDA_FUNC float lum(float3 col);
@@ -25,8 +31,9 @@ float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
 //void waveletfilterCPU(Framebuffer frame, FilterParams params);
 //void waveletfilterGPU(Framebuffer frame, FilterParams params);
 
-KERNEL void filterKernel(Framebuffer frame, FilterParams params);
-CUDA_FUNC void filterPixel(int2 pos, const Pixel* in, Pixel* out, const Framebuffer frame, const FilterParams params);
+KERNEL void filterKernel(Framebuffer frame, const FilterParams params);
+CUDA_FUNC void cacheTile(uchar3* tile, uchar3* in, int2 shape, int radius);
+CUDA_FUNC void filterPixel(int2 pos, const Pixel* in, Pixel* out, Framebuffer frame, const FilterParams params);
 CUDA_FUNC float waveletWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
 CUDA_FUNC float averageWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
 

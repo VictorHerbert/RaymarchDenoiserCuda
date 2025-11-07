@@ -3,6 +3,7 @@
 #include "test.cuh"
 
 #include <vector>
+#include <cassert>
 
 
 FuncVector registered_funcs;
@@ -42,18 +43,37 @@ SKIP(image_open_save){
     image.save(OUTPUT_PATH + "image.png");
 }
 
+SKIP(SHARED_MEM){
+    cudaDeviceProp prop;
+    int device;
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&prop, device);
+
+    std::cout << "Device name: " << prop.name << std::endl;
+    std::cout << "Shared memory per block: " << prop.sharedMemPerBlock / 1024.0f << " KB" << std::endl;
+    std::cout << "Registers per block: " << prop.regsPerBlock << std::endl;
+    std::cout << "Warp size: " << prop.warpSize << std::endl;
+
+    // Optional: maximum shared memory per SM
+    std::cout << "Shared memory per multiprocessor: " 
+              << prop.sharedMemPerMultiprocessor / 1024.0f << " KB" << std::endl;
+
+}
+
 TEST(FILTER_AVG){
     Image image(SPONZA_SAMPLE);
     int2 shape = image.shape;
     CudaVector<uchar3> in(image.data, totalSize(image.shape));
     CudaVector<uchar3> out(totalSize(image.shape));
     
-    const dim3 blockSize(16, 16);
-    dim3 gridSize((shape.x + 15) / 16, (shape.y + 15) / 16);
+    const dim3 blockSize(8, 8);
+    dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
 
-    filterKernel<<<gridSize, blockSize>>>(
+    int byteCount = totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar3);
+    printf("Using %d/%d bytes of shared memory\n", byteCount, 49152);
+    filterKernel<<<gridSize, blockSize, byteCount>>>(
         {.shape=shape, .render=in.data(), .denoised=out.data()},
-        {.type=FilterParams::AVERAGE, .depth=1});
+        {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=false});
 
     out.copyTo(image.vecBuffer);
     image.save(OUTPUT_PATH + "filter_avg.png");

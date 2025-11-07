@@ -9,99 +9,93 @@
 
 __constant__ float waveletSpline[3] = {3.0/8.0, 1.0/4.0, 1.0/16.0};
 
-const int2 MAX_BLOCK_SIZE = {26,26};
-const int MAX_KERNEL_RADIUS = 2;
-const int SHARED_MEM_OCUPANCY = sizeof(uchar3)*(MAX_BLOCK_SIZE.y + 2 * MAX_KERNEL_RADIUS)*(MAX_BLOCK_SIZE.y + 2 * MAX_KERNEL_RADIUS);
-
-static_assert(SHARED_MEM_OCUPANCY <= (48 * 1024), "Shared memory occupancy exceeds threshold");
-
-KERNEL void filterKernel(Framebuffer frame, FilterParams params){
+KERNEL void filterKernel(Framebuffer frame, const FilterParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
-    };
+    };    
+    
+    //cacheTile(albedoTile, frame.albedo, frame.shape, params.radius);
+    //cacheTile(normalTile, frame.normal, frame.shape, params.radius);
 
-    if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
-        return;
+    int2 blockShape = { blockDim.x, blockDim.y };
+    int2 blockPos   = { threadIdx.x, threadIdx.y };
+    int2 halo       = { params.radius, params.radius };
 
-    __shared__ uchar3 tile[MAX_BLOCK_SIZE.y + 2 * MAX_KERNEL_RADIUS][MAX_BLOCK_SIZE.x + 2 * MAX_KERNEL_RADIUS];
-    int2 blockPos = {threadIdx.x, threadIdx.y};
+    int2 tileShape = blockShape + 2*halo;
+    int tileSize = totalSize(tileShape);
 
-    // Global index
-    int idx = row * width + col;
+    extern __shared__ uchar3 tile[];
+    uchar3 *renderTile = tile;
+    uchar3 *bufferTile = renderTile + tileSize;
+    
+    for(int level = 0; level < params.depth; level++){     
+        uchar3* in = (level == 0) ? frame.render : frame.buffer[level%2];
+        uchar3* out = (level == (params.depth - 1)) ? frame.denoised : frame.buffer[(level+1)%2];
 
-    // Load central pixel
-    if (col < width && row < height)
-        tile[ty + KERNEL_RADIUS][tx + KERNEL_RADIUS] = in[idx];
+        if(params.cacheInput)
+            cacheTile(renderTile, in, frame.shape, params.radius);
 
-    // Load halo pixels (borders)
-    // Left and right
-    if (tx < KERNEL_RADIUS) {
-        int leftCol = max(col - KERNEL_RADIUS, 0);
-        int rightCol = min(col + blockDim.x, width - 1);
-        if (row < height) {
-            tile[ty + KERNEL_RADIUS][tx] = in[row * width + leftCol];
-            tile[ty + KERNEL_RADIUS][tx + blockDim.x + KERNEL_RADIUS] = in[row * width + rightCol];
+        if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
+            continue;
+
+        int2 blockPos   = { threadIdx.x, threadIdx.y };
+
+        float3 acum = {0, 0, 0};
+        float norm = 0;
+        int2 d;
+
+        for(d.x = -params.radius; d.x <= params.radius; d.x++){
+            for(d.y = -params.radius; d.y <= params.radius; d.y++){
+                int2 nPos = pos + d;
+                int2 nTilePos = blockPos + halo + d;
+
+                if(!inRange(nPos, frame.shape))
+                    continue;
+
+                float w = 1;
+                if(params.cacheInput)
+                    acum += w*renderTile[flattenIndex(nTilePos, tileShape)];
+                else
+                    acum += w*in[flattenIndex(nPos, frame.shape)];
+
+                norm += w;
+            }
         }
-    }
-
-    // Top and bottom
-    if (ty < KERNEL_RADIUS) {
-        int topRow = max(row - KERNEL_RADIUS, 0);
-        int bottomRow = min(row + blockDim.y, height - 1);
-        if (col < width) {
-            tile[ty][tx + KERNEL_RADIUS] = in[topRow * width + col];
-            tile[ty + blockDim.y + KERNEL_RADIUS][tx + KERNEL_RADIUS] = in[bottomRow * width + col];
-        }
-    }
-
-    for(int i = 0; i < params.depth; i++){
-        //printf("%i/%i\n", i, params.depth);
-        
-        params.step = 1<<i;
-        filterPixel(
-            pos,
-            (i == 0) ? frame.render : frame.buffer[i%2],
-            (i == (params.depth - 1)) ? frame.denoised : frame.buffer[(i+1)%2],
-            frame, params);
+        acum /= norm;
+        out[flattenIndex(pos, frame.shape)] = make_uchar3(acum);
 
         __syncthreads();
     }
 }
 
-CUDA_FUNC void filterPixel(int2 pos, const Pixel* in, Pixel* out, const Framebuffer frame, const FilterParams params){
-    
-    float3 acum = {0, 0, 0};
-    float norm = 0;
-    int2 d;
-    for(d.x = -2; d.x <= 2; d.x++){
-        for(d.y = -2; d.y <= 2; d.y++){
-            int2 n = {
-                pos.x + d.x * params.step,
-                pos.y + d.y * params.step
-            };
+CUDA_FUNC void cacheTile(uchar3* tile, uchar3* in, int2 shape, int radius){
+    int2 blockShape = { blockDim.x, blockDim.y };
+    int2 blockPos   = { threadIdx.x, threadIdx.y };
+    int2 halo       = { radius, radius };
 
-            if(!inRange(n, frame.shape))
-                continue;
+    int2 tileSize = { blockShape.x + 2 * halo.x, blockShape.y + 2 * halo.y };
+    int totalTileSize = tileSize.x * tileSize.y;
 
-            float w;
-            switch (params.type){
-            case FilterParams::AVERAGE:
-                w = averageWeight(pos, n, d, in, frame, params);
-                break;
-            case FilterParams::WAVELET:
-                w = waveletWeight(pos, n, d, in, frame, params);        
-            default:
-                break;
-            }
-            
-            acum += w*in[index(n, frame.shape)];
-            norm += w;
+    int threadId = blockPos.y * blockShape.x + blockPos.x;
+
+    for (int idx = threadId; idx < totalTileSize; idx += blockShape.x * blockShape.y) {
+        int2 tilePos = { idx % tileSize.x, idx / tileSize.x };
+
+        int2 framePos = {
+            blockIdx.x * blockShape.x + tilePos.x - halo.x,
+            blockIdx.y * blockShape.y + tilePos.y - halo.y
+        };
+
+        if (inRange(framePos, shape)){
+            int frameIdx = flattenIndex(framePos, shape);
+            tile[idx] = in[frameIdx];
         }
     }
-    acum /= norm;
-    out[index(pos, frame.shape)] = make_uchar3(acum);
+
+    __syncthreads();
 }
+
 
 CUDA_FUNC float averageWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params){
     return 1.0f; // Equal weight
@@ -112,13 +106,13 @@ CUDA_FUNC float normalLenght(float3 v){
 }
 
 CUDA_FUNC float waveletWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params){
-    float3 dCol = make_float3(in[index(pos, frame.shape)] - in[index(n, frame.shape)]);
+    float3 dCol = make_float3(in[flattenIndex(pos, frame.shape)] - in[flattenIndex(n, frame.shape)]);
     float wCol = normalLenght(dCol)/params.sigmaColor;
 
-    float3 dAlbedo = make_float3(frame.albedo[index(pos, frame.shape)] - frame.albedo[index(n, frame.shape)]);
+    float3 dAlbedo = make_float3(frame.albedo[flattenIndex(pos, frame.shape)] - frame.albedo[flattenIndex(n, frame.shape)]);
     float wAlbedo = normalLenght(dAlbedo)/params.sigmaAlbedo;
 
-    float dNormal = min(0.0, dot(frame.normal[index(pos, frame.shape)], frame.normal[index(n, frame.shape)]));
+    float dNormal = min(0.0, dot(frame.normal[flattenIndex(pos, frame.shape)], frame.normal[flattenIndex(n, frame.shape)]));
     float wNormal = dNormal/params.sigmaNormal;
 
     float wSpace = length(make_float2(d))/params.sigmaSpace;
