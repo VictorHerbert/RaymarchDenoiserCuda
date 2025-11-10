@@ -70,6 +70,7 @@ KERNEL void filterKernel(Framebuffer frame, const FilterParams params){
 }
 
 CUDA_FUNC void cacheTile(uchar3* tile, uchar3* in, int2 shape, int radius){
+    int2 gridPos    = { blockIdx.x, blockIdx.y };
     int2 blockShape = { blockDim.x, blockDim.y };
     int2 blockPos   = { threadIdx.x, threadIdx.y };
     int2 halo       = { radius, radius };
@@ -82,10 +83,7 @@ CUDA_FUNC void cacheTile(uchar3* tile, uchar3* in, int2 shape, int radius){
     for (int idx = threadId; idx < totalTileSize; idx += blockShape.x * blockShape.y) {
         int2 tilePos = { idx % tileSize.x, idx / tileSize.x };
 
-        int2 framePos = {
-            blockIdx.x * blockShape.x + tilePos.x - halo.x,
-            blockIdx.y * blockShape.y + tilePos.y - halo.y
-        };
+        int2 framePos = gridPos * blockShape + tilePos - halo;
 
         if (inRange(framePos, shape)){
             int frameIdx = flattenIndex(framePos, shape);
