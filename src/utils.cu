@@ -53,3 +53,18 @@ CUDA_CPU_FUNC float3 make_float3(const uchar3 &v){
 CUDA_CPU_FUNC float length2(const float3 &v){
     return length(v)*length(v);
 }
+
+void printGPUProperties(){
+    cudaDeviceProp prop;
+    int device;
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&prop, device);
+
+    std::cout << "----------------------------------------------------------" << std::endl;
+    std::cout << "Device name: " << prop.name << std::endl;
+    std::cout << "Shared memory per block: " << prop.sharedMemPerBlock / 1024.0f << " KB" << std::endl;
+    std::cout << "Registers per block: " << prop.regsPerBlock << std::endl;
+    std::cout << "Warp size: " << prop.warpSize << std::endl;
+    std::cout << "Shared memory per multiprocessor: " << prop.sharedMemPerMultiprocessor / 1024.0f << " KB" << std::endl;
+    std::cout << "----------------------------------------------------------" << std::endl;
+}

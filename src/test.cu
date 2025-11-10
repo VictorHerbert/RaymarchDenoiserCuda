@@ -34,6 +34,10 @@ void test() {
     }
 }
 
+SKIP(DEVICE_STATS){
+    printGPUProperties();
+}
+
 SKIP(image_open){
     Image image("render/cornell/1/render.png");
 }
@@ -43,38 +47,33 @@ SKIP(image_open_save){
     image.save(OUTPUT_PATH + "image.png");
 }
 
-SKIP(SHARED_MEM){
-    cudaDeviceProp prop;
-    int device;
-    cudaGetDevice(&device);
-    cudaGetDeviceProperties(&prop, device);
 
-    std::cout << "Device name: " << prop.name << std::endl;
-    std::cout << "Shared memory per block: " << prop.sharedMemPerBlock / 1024.0f << " KB" << std::endl;
-    std::cout << "Registers per block: " << prop.regsPerBlock << std::endl;
-    std::cout << "Warp size: " << prop.warpSize << std::endl;
 
-    // Optional: maximum shared memory per SM
-    std::cout << "Shared memory per multiprocessor: " 
-              << prop.sharedMemPerMultiprocessor / 1024.0f << " KB" << std::endl;
+Image image(SPONZA_SAMPLE);
+int2 shape = image.shape;
+CudaVector<uchar3> in(image.data, totalSize(image.shape));
+CudaVector<uchar3> out(totalSize(image.shape));
 
-}
-
-TEST(FILTER_AVG){
-    Image image(SPONZA_SAMPLE);
-    int2 shape = image.shape;
-    CudaVector<uchar3> in(image.data, totalSize(image.shape));
-    CudaVector<uchar3> out(totalSize(image.shape));
+TEST(FILTER_SPACE_EXP){
+    CPUVector<dim3> blockSizes = {{8,8}, {16,16}};
+    CPUVector<bool> cacheInputs = {false, true};
     
-    const dim3 blockSize(8, 8);
-    dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
+    std::cout << "----------------------------------------------------------" << std::endl;
+    for(dim3 blockSize : blockSizes){
+        for(bool cacheInput : cacheInputs){
+            dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
 
-    int byteCount = totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar3);
-    printf("Using %d/%d bytes of shared memory\n", byteCount, 49152);
-    filterKernel<<<gridSize, blockSize, byteCount>>>(
-        {.shape=shape, .render=in.data(), .denoised=out.data()},
-        {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=false});
+            int byteCount = cacheInput ? totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar3) : 0;
 
-    out.copyTo(image.vecBuffer);
-    image.save(OUTPUT_PATH + "filter_avg.png");
+            std::cout << "BlockShape: (" << blockSize.x << "," << blockSize.y << ") \t";
+            std::cout << "SharedMem: " << byteCount << "/" << 49152 << std::endl;
+
+            filterKernel<<<gridSize, blockSize, byteCount>>>(
+                {.shape=shape, .render=in.data(), .denoised=out.data()},
+                {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
+
+            cudaDeviceSynchronize();
+        }
+    }
+    std::cout << "----------------------------------------------------------" << std::endl;
 }

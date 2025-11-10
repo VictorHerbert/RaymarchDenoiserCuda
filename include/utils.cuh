@@ -57,4 +57,7 @@ CUDA_CPU_FUNC float3 make_float3(const uchar3 &v);
 
 CUDA_CPU_FUNC float length2(const float3 &v);
 
+
+void printGPUProperties();
+
 #endif
