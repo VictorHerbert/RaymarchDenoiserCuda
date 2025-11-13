@@ -80,6 +80,10 @@ CUDA_CPU_FUNC uchar3 make_uchar3(const float3 &v) {
     return make_uchar3(v.x, v.y, v.z);
 }
 
+CUDA_CPU_FUNC uchar3 make_uchar3(const uchar4 &v) {
+    return make_uchar3(v.x, v.y, v.z);
+}
+
 CUDA_CPU_FUNC float3 make_float3(const uchar3 &v){
     return make_float3(v.x, v.y, v.z);
 }

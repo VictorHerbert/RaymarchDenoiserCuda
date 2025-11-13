@@ -5,6 +5,7 @@
 #include <vector>
 #include <cassert>
 
+#include "third_party/stb_image.h"
 
 FuncVector registered_funcs;
 const std::string OUTPUT_PATH =  "test/";
@@ -15,22 +16,25 @@ void test() {
         std::cout << "No tests found" << std::endl;
         return;
     }
+    std::cout << "----------------------------------------------------------" << std::endl;
     std::cout << "TEST SUITE: " << registered_funcs.size() << " test" << ((registered_funcs.size() == 1) ? "" : "s") <<" found" << std::endl;
+    std::cout << "----------------------------------------------------------" << std::endl;
     for (auto& [name, func] : registered_funcs) {
-        std::cout << "----------------------------------------------------------" << std::endl;
+        
         try {
+            std::cout << "TEST " << name << ":" <<std::endl;
             auto start = std::chrono::high_resolution_clock::now();
             func();
             auto end = std::chrono::high_resolution_clock::now();
             double frameTime = std::chrono::duration<double, std::milli>(end - start).count();
 
-            std::cout << "TEST " << name << ": passed with " << frameTime << " ms" <<std::endl;
+            std::cout << "Passed with " << frameTime << " ms" <<std::endl;
         }
         catch (const std::runtime_error& e) {
-            std::cout << "TEST " << name << ": failed \nREASON: " << e.what() << std::endl;
+            std::cout << "Fail with " << e.what() << std::endl;
         }
         catch (...) {
-            std::cout << "TEST " << name << ": failed" << std::endl;
+            std::cout << "Failed" << std::endl;
         }
         std::cout << "----------------------------------------------------------" << std::endl;
     }
@@ -50,11 +54,10 @@ SKIP(image_open_save){
 }
 
 
-TEST(FILTER){
-    Image image(SPONZA_SAMPLE);
-    int2 shape = image.shape;
-    CudaVector<uchar3> in(image.data, totalSize(image.shape));
-    CudaVector<uchar3> out(totalSize(image.shape));
+SKIP(FILTER){
+    int2 shape =  {1920, 1080};
+    CudaVector<uchar4> in(totalSize(shape));
+    CudaVector<uchar4> out(totalSize(shape));
 
     const dim3 blockSize(16,16);
     const bool cacheInput = true;
@@ -65,7 +68,7 @@ TEST(FILTER){
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    filterKernel<<<gridSize, blockSize, byteCount>>>(
+    filterKernel<uchar4><<<1, blockSize, byteCount>>>(
         {.shape=shape, .render=in.data(), .denoised=out.data()},
         {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
 
@@ -75,44 +78,86 @@ TEST(FILTER){
     double time = std::chrono::duration<double, std::milli>(end - start).count();
 
     std::cout << "BlockShape: (" << blockSize.x << "," << blockSize.y << ") \t";
-    std::cout << "SharedMem: " << byteCount << "/" << "49152\t";
-    std::cout << time << " ms" << std::endl;
-
-    out.copyTo(image.vecBuffer);
-    image.save(OUTPUT_PATH + "filter.png");
-
+    std::cout << "SharedMem: " << 49152 << "/" << "49152\t";
+    std::cout << time << " ms\n" << std::endl;
 }
 
-SKIP(FILTER_SPACE_EXP){
-    Image image(SPONZA_SAMPLE);
-    int2 shape = image.shape;
-    CudaVector<uchar3> in(image.data, totalSize(image.shape));
-    CudaVector<uchar3> out(totalSize(image.shape));
+TEST(FILTER_UCHAR3){
+    int2 shape =  {1920, 1080};
+    CudaVector<uchar3> in(totalSize(shape));
+    CudaVector<uchar3> out(totalSize(shape));
 
     CPUVector<dim3> blockSizes = {{8,8}, {16,16}};
     CPUVector<bool> cacheInputs = {false, true};
-    
-    for(dim3 blockSize : blockSizes){
-        for(bool cacheInput : cacheInputs){
-            dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
 
-            int byteCount = cacheInput ? totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar3) : 0;
+    CPUVector<std::tuple<dim3, bool>> test_vectors = {
+        {{8,8}, false},
+        {{8,8}, true},
+        {{16,16}, false},
+        {{16,16}, true},
+    };
 
-            auto start = std::chrono::high_resolution_clock::now();
+    for(auto& [blockSize, cacheInput] : test_vectors){
+        dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
 
-            filterKernel<<<gridSize, blockSize, byteCount>>>(
-                {.shape=shape, .render=in.data(), .denoised=out.data()},
-                {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
+        int byteCount = cacheInput ? totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar4) : 0;
 
-            cudaDeviceSynchronize();
+        auto start = std::chrono::high_resolution_clock::now();
 
-            auto end = std::chrono::high_resolution_clock::now(); 
-            double time = std::chrono::duration<double, std::milli>(end - start).count();
+        filterKernel<uchar3><<<gridSize, blockSize, 49152>>>(
+            {.shape=shape, .render=in.data(), .denoised=out.data()},
+            {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
 
-            std::cout << "BlockShape: (" << blockSize.x << "," << blockSize.y << ") \t";
-            std::cout << "SharedMem: " << byteCount << "/" << "49152\t";
-            std::cout << time << " ms" << std::endl;
-        }
+        cudaDeviceSynchronize();
+
+        auto end = std::chrono::high_resolution_clock::now(); 
+        double time = std::chrono::duration<double, std::milli>(end - start).count();
+
+        std::cout << "BlockShape: (" << blockSize.x << "," << blockSize.y << ") \t";
+        std::cout << "CacheInput: " << cacheInput << "\t"; 
+        std::cout << "SharedMem: " << byteCount << "/" << "49152\t";
+        std::cout << time << " ms" << std::endl;
+
     }
+    std::cout << std::endl;
+}
+
+TEST(FILTER_UCHAR4){
+    int2 shape = {1920, 1080};
+    CudaVector<uchar4> in(totalSize(shape));
+    CudaVector<uchar4> out(totalSize(shape));
+
+    CPUVector<dim3> blockSizes = {{8,8}, {16,16}};
+    CPUVector<bool> cacheInputs = {false, true};
+
+    CPUVector<std::tuple<dim3, bool>> test_vectors = {
+        {{8,8}, false},
+        {{8,8}, true},
+        {{16,16}, false},
+        {{16,16}, true},
+    };
+
+    for(auto& [blockSize, cacheInput] : test_vectors){
+        dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
+
+        int byteCount = cacheInput ? totalSize(make_int2(blockSize.x, blockSize.y)) * 25 * sizeof(uchar4) : 0;
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        filterKernel<uchar4><<<gridSize, blockSize, 49152>>>(
+            {.shape=shape, .render=in.data(), .denoised=out.data()},
+            {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
+
+        cudaDeviceSynchronize();
+
+        auto end = std::chrono::high_resolution_clock::now(); 
+        double time = std::chrono::duration<double, std::milli>(end - start).count();
+
+        std::cout << "BlockShape: (" << blockSize.x << "," << blockSize.y << ") \t";
+        std::cout << "CacheInput: " << cacheInput << "\t"; 
+        std::cout << "SharedMem: " << byteCount << "/" << "49152\t";
+        std::cout << time << " ms" << std::endl;
+    }
+    std::cout << std::endl;
 
 }

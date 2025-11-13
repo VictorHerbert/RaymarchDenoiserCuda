@@ -11,14 +11,15 @@
 
 typedef uchar3 Pixel;
 
+template<typename T>
 struct Framebuffer{
     int2 shape;
-    Pixel* render;
-    Pixel* denoised;
-    Pixel* normal;
-    Pixel* albedo;
+    T* render;
+    T* denoised;
+    T* normal;
+    T* albedo;
     
-    Pixel* buffer[2];
+    T* buffer[2];
 };
 
 struct Image{
@@ -38,15 +39,17 @@ struct Image{
 Pixel* openImage(std::string filepath);
 void saveImage(std::string filepath, Pixel* data, int2 shape);
 
-struct CPUFramebuffer : Framebuffer{
+template<typename T>
+struct CPUFramebuffer : Framebuffer<T>{
     Image render, albedo, normal;
 };
 
-struct CudaFramebuffer : Framebuffer {
-    CudaVector<Pixel> renderVec, albedoVec, normalVec, denoisedVec;
-    CudaVector<Pixel> bufferVec;
+template<typename T>
+struct CudaFramebuffer : Framebuffer<T> {
+    CudaVector<T> renderVec, albedoVec, normalVec, denoisedVec;
+    CudaVector<T> bufferVec;
     //CPUVector<Pixel> denoisedVecCpu; // TODO remove
-    Pixel* denoisedCPU;
+    T* denoisedCPU;
 
     CudaFramebuffer(){};
     ~CudaFramebuffer();

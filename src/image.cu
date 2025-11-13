@@ -63,7 +63,14 @@ void Image::save(std::string filename, uchar3* data, int2 shape){
     }
 }
 
-CudaFramebuffer::~CudaFramebuffer(){
+
+void saveImage(std::string filepath, Pixel* data, int2 shape){
+    if(!stbi_write_png(filepath.c_str(), shape.x, shape.y, 3, data, shape.x * 3)){
+        throw std::runtime_error("Failed to save image " + filepath + "': " + stbi_failure_reason());
+    }
+}
+
+/*CudaFramebuffer::~CudaFramebuffer(){
     cudaFreeHost(denoisedCPU);
 }
 
@@ -106,11 +113,6 @@ void CudaFramebuffer::allocate(int2 shape){
     buffer[1] = bufferVec.data() + size;
 }
 
-void saveImage(std::string filepath, Pixel* data, int2 shape){
-    if(!stbi_write_png(filepath.c_str(), shape.x, shape.y, 3, data, shape.x * 3)){
-        throw std::runtime_error("Failed to save image " + filepath + "': " + stbi_failure_reason());
-    }
-}
 
 void CudaFramebuffer::openImages(std::string filepath, cudaStream_t stream){
     int byteCount = sizeof(Pixel) * totalSize(shape);
@@ -125,7 +127,7 @@ void CudaFramebuffer::openImages(std::string filepath, cudaStream_t stream){
 }
 
 
-/*CPUFramebuffer::CPUFramebuffer(std::string filepath){
+CPUFramebuffer::CPUFramebuffer(std::string filepath){
     fromImages(filepath);
 }
 

@@ -5,7 +5,7 @@
 NVCC = nvcc
 CXX = $(NVCC)
 
-CXXFLAGS_LK = -w -G -g -O0 -std=c++17 -arch=sm_75 \
+CXXFLAGS_LK = -w -G -g -O3 -std=c++17 -arch=sm_75 \
 	-I./include -I./include/imgui -I./include/imgui/backends
 CXXFLAGS = $(CXXFLAGS_LK) -dc
 
