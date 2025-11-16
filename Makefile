@@ -1,90 +1,64 @@
-# =========================
-# Compiler and Flags
-# =========================
+# ===========================================================================
+#                           Compiler and Flags
+# ===========================================================================
 
 NVCC = nvcc
 CXX = $(NVCC)
 
-CXXFLAGS_LK = -w -G -g -O3 -std=c++17 -arch=sm_75 \
-	-I./include -I./include/imgui -I./include/imgui/backends
+CXXFLAGS_LK = -w -G -g -O3 -std=c++17 -arch=sm_75 -I./include
 CXXFLAGS = $(CXXFLAGS_LK) -dc
 
-ifeq ($(OS),Windows_NT)
-    LDFLAGS = -lglfw3dll -lopengl32
-    MKDIR = wsl mkdir
-else
-    LDFLAGS = -lglfw -lGL -ldl -lpthread
-    MKDIR = mkdir
-endif
-
+MKDIR = mkdir
 RM = rm
 
-# =========================
-# Directories
-# =========================
+# ===========================================================================
+#                               Directories
+# ===========================================================================
 
 SRC_DIR     = src
 BUILD_DIR   = build
 INCLUDE_DIR = include
 
-# =========================
-# ImGui Source Files
-# =========================
+# ===========================================================================
+#                        Source and Object Files
+# ===========================================================================
 
-IMGUI_SRC = \
-    $(INCLUDE_DIR)/imgui/imgui.cpp \
-    $(INCLUDE_DIR)/imgui/imgui_draw.cpp \
-    $(INCLUDE_DIR)/imgui/imgui_tables.cpp \
-    $(INCLUDE_DIR)/imgui/imgui_widgets.cpp \
-    $(INCLUDE_DIR)/imgui/imgui_demo.cpp \
-    $(INCLUDE_DIR)/imgui/backends/imgui_impl_glfw.cpp \
-    $(INCLUDE_DIR)/imgui/backends/imgui_impl_opengl3.cpp
-
-# =========================
-# Source and Object Files
-# =========================
 SRC        = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/*.cu)
 OBJ        = $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 OBJ        := $(OBJ:$(SRC_DIR)/%.cu=$(BUILD_DIR)/%.o)
-IMGUI_OBJ  = $(patsubst $(INCLUDE_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(IMGUI_SRC))
-ALL_OBJ    = $(OBJ) $(IMGUI_OBJ)
 
-BLENDER = "C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"
+# ===========================================================================
+#                                 Target
+# ===========================================================================
 
-# =========================
-# Target
-# =========================
 TARGET = $(BUILD_DIR)/main
 
-# =========================
-# Build Rules
-# =========================
-all: $(TARGET)
+# ===========================================================================
+#                               Build Rules
+# ===========================================================================
+
+$(TARGET): $(OBJ)
+	@echo "Linking $< into $@"
+	@$(NVCC) $(CXXFLAGS_LK) -o $@ $^ $(LDFLAGS)
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Recompiling $< into $@"
+	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
+	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
+	@echo "Recompiling $< into $@"
+	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
+	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+
+-include $(ALL_OBJ:.o=.d)
+
+# ===========================================================================
+#                                 Tasks
+# ===========================================================================
 
 test: $(TARGET)
 	@./$(TARGET) -t
-
-window: $(TARGET)
-	@./$(TARGET) -gui
-
-$(TARGET): $(ALL_OBJ)
-	$(NVCC) $(CXXFLAGS_LK) -o $@ $^ $(LDFLAGS)
-
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	$(NVCC) $(CXXFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
-	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	$(NVCC) $(CXXFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
-	$(NVCC) $(CXXFLAGS) -c $< -o $@
-
-
-# =========================
-# Tasks
-# =========================
 
 memcheck: $(TARGET)
 	compute-sanitizer --tool memcheck --show-backtrace=yes --log-file $(BUILD_DIR)/memcheck.log ./$(TARGET) -t
@@ -92,9 +66,14 @@ memcheck: $(TARGET)
 doxygen:
 	doxygen Doxyfile
 
-# =========================
-# Clean
-# =========================
+all: memcheck doxygen
+
+.PHONY: all clean test
+
+# ===========================================================================
+#                                  Clean
+# ===========================================================================
+
 test_clean: $(TARGET)
 	@$(RM) -rf test/*
 	@./$(TARGET) -t
@@ -102,9 +81,7 @@ test_clean: $(TARGET)
 clean:
 	$(RM) -rf $(BUILD_DIR)/*
 	$(RM) -rf test/*
-	$(MKDIR) -p build/imgui/backends
 	$(MKDIR) -p test
 
-.PHONY: render all clean run test
 
--include $(ALL_OBJ:.o=.d)
+
