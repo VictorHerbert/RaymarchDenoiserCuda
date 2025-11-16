@@ -12,4 +12,25 @@ struct GBuffer{
     T* buffer[2];
 };
 
+template<typename T>
+struct CPUGBuffer : GBuffer<T>{
+    Image render, albedo, normal;
+};
+
+template<typename T>
+struct CudaGBuffer : GBuffer<T> {
+    CudaVector<T> renderVec, albedoVec, normalVec, denoisedVec;
+    CudaVector<T> bufferVec;
+    //CPUVector<Pixel> denoisedVecCpu; // TODO remove
+    T* denoisedCPU;
+
+    CudaGBuffer(){};
+    ~CudaGBuffer();
+    CudaGBuffer (int2 shape);
+
+    void allocate(int2 shape);
+
+    void openImages(std::string filepath, cudaStream_t stream = 0);
+};
+
 #endif
