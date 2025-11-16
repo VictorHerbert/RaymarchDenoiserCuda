@@ -65,7 +65,7 @@ CUDA_FUNC void cacheTile(uchar4* tile, T* in, int2 shape, int radius){
 }
 
 template <typename T>
-KERNEL void filterKernel(Framebuffer<T> frame, const FilterParams params){
+KERNEL void filterKernel(GBuffer<T> frame, const FilterParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
@@ -139,7 +139,7 @@ KERNEL void filterKernel(Framebuffer<T> frame, const FilterParams params){
 }
 
 template <typename T>
-KERNEL void filterKernelBaseline(Framebuffer<T> frame, const FilterParams params){
+KERNEL void filterKernelBaseline(GBuffer<T> frame, const FilterParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
@@ -186,8 +186,8 @@ KERNEL void filterKernelBaseline(Framebuffer<T> frame, const FilterParams params
     }
 }
 
-//CUDA_FUNC float waveletWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
-//CUDA_FUNC float averageWeight(int2 pos, int2 n, int2 d, const Pixel* in, const Framebuffer& frame, const FilterParams params);
+//CUDA_FUNC float waveletWeight(int2 pos, int2 n, int2 d, const Pixel* in, const GBuffer& frame, const FilterParams params);
+//CUDA_FUNC float averageWeight(int2 pos, int2 n, int2 d, const Pixel* in, const GBuffer& frame, const FilterParams params);
 
 void waveletFilterSequence(std::string inputPath, std::string outputPath);
 

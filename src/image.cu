@@ -70,11 +70,11 @@ void saveImage(std::string filepath, Pixel* data, int2 shape){
     }
 }
 
-/*CudaFramebuffer::~CudaFramebuffer(){
+/*CudaGBuffer::~CudaGBuffer(){
     cudaFreeHost(denoisedCPU);
 }
 
-CudaFramebuffer::CudaFramebuffer(int2 shape){
+CudaGBuffer::CudaGBuffer(int2 shape){
     this->shape = shape;
 
     int size = totalSize(shape);
@@ -93,7 +93,7 @@ CudaFramebuffer::CudaFramebuffer(int2 shape){
     buffer[1] = bufferVec.data() + size;
 }
 
-void CudaFramebuffer::allocate(int2 shape){
+void CudaGBuffer::allocate(int2 shape){
     this->shape = shape;
 
     int size = totalSize(shape);
@@ -114,7 +114,7 @@ void CudaFramebuffer::allocate(int2 shape){
 }
 
 
-void CudaFramebuffer::openImages(std::string filepath, cudaStream_t stream){
+void CudaGBuffer::openImages(std::string filepath, cudaStream_t stream){
     int byteCount = sizeof(Pixel) * totalSize(shape);
     std::regex pattern(R"(\$type\$)");
 
@@ -127,11 +127,11 @@ void CudaFramebuffer::openImages(std::string filepath, cudaStream_t stream){
 }
 
 
-CPUFramebuffer::CPUFramebuffer(std::string filepath){
+CPUGBuffer::CPUGBuffer(std::string filepath){
     fromImages(filepath);
 }
 
-void CPUFramebuffer::fromImages(std::string filepath){
+void CPUGBuffer::fromImages(std::string filepath){
     std::regex pattern(R"(\$type\$)");
     Image render_img(std::regex_replace(filepath, pattern, "render"));
     shape = render_img.shape;
@@ -140,10 +140,10 @@ void CPUFramebuffer::fromImages(std::string filepath){
     normal = Image(std::regex_replace(filepath, pattern, "normal"));
 }
 
-void CudaFramebuffer::fromImages(std::string filepath){
-    fromCPUFrame(CPUFramebuffer(filepath));
+void CudaGBuffer::fromImages(std::string filepath){
+    fromCPUFrame(CPUGBuffer(filepath));
 }
 
-void CudaFramebuffer::fromCPUFrame(CPUFramebuffer cpuFrame){
+void CudaGBuffer::fromCPUFrame(CPUGBuffer cpuFrame){
     //renderVec.from(cpuFrame.)
 }*/
