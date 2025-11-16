@@ -1,4 +1,4 @@
-#include "utils.cuh"
+#include "utils.h"
 
 #include "third_party/helper_math.h"
 

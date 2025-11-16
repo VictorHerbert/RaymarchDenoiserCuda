@@ -1,17 +1,15 @@
-#include "image.cuh"
-
-#include <string>
-#include <stdio.h>
+#include "image.h"
+#include "utils.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "third_party/stb_image.h"
 #include "third_party/stb_image_write.h"
-
 #include "third_party/helper_math.h"
 
-#include "utils.cuh"
+#include <string>
+#include <stdio.h>
 #include <stdexcept>
 #include <regex>
 
@@ -39,7 +37,7 @@ Image::Image(std::string filename){
 
     vecBuffer.resize(totalSize(shape));
     memcpy(vecBuffer.data(), buffer, totalSize(shape) * sizeof(uchar3));
-    
+
     free(buffer);
     data = vecBuffer.data();
     //auto end = std::chrono::high_resolution_clock::now();
@@ -78,7 +76,7 @@ CudaGBuffer::CudaGBuffer(int2 shape){
     this->shape = shape;
 
     int size = totalSize(shape);
-    
+
     renderVec.resize(size);
     albedoVec.resize(size);
     normalVec.resize(size);
@@ -97,7 +95,7 @@ void CudaGBuffer::allocate(int2 shape){
     this->shape = shape;
 
     int size = totalSize(shape);
-    
+
     renderVec.resize(size);
     albedoVec.resize(size);
     normalVec.resize(size);

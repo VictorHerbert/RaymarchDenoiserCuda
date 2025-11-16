@@ -1,7 +1,7 @@
 #include "filter.cuh"
 
-#include "image.cuh"
-#include "utils.cuh"
+#include "image.h"
+#include "utils.h"
 
 #include <math.h>
 #include <regex>

@@ -2,9 +2,9 @@
 #ifndef FILTER_H
 #define FILTER_H
 
-#include "utils.cuh"
-#include "vector.cuh"
-#include "image.cuh"
+#include "utils.h"
+#include "vector.h"
+#include "image.h"
 
 #include "third_party/helper_math.h"
 

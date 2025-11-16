@@ -1,5 +1,7 @@
 
-#include "test.cuh"
+#include "test.h"
+
+#include <cstring>
 
 int main(int argc, char* argv[]){
     if (argc > 1) {

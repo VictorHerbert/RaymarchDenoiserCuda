@@ -1,14 +1,15 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include <string>
-#include <vector>
+#include "utils.h"
+#include "vector.h"
+#include "gbuffer.h"
+
 
 #include "cuda_runtime.h"
 
-#include "utils.cuh"
-#include "vector.cuh"
-#include "gbuffer.h"
+#include <string>
+#include <vector>
 
 typedef uchar3 Pixel;
 

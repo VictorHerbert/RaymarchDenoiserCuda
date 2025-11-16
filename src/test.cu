@@ -1,11 +1,12 @@
-#include "image.cuh"
+#include "image.h"
 #include "filter.cuh"
-#include "test.cuh"
+#include "test.h"
+
+#include "third_party/stb_image.h"
 
 #include <vector>
 #include <cassert>
 
-#include "third_party/stb_image.h"
 
 FuncVector registered_funcs;
 const std::string OUTPUT_PATH =  "test/";
