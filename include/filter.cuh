@@ -26,8 +26,8 @@ struct FilterParams {
 float3 snrCPU(Pixel* original, Pixel* noisy, int2 shape);
 float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
 
-template<typename T1, typename T2>
-CUDA_FUNC void cacheTile(T1* tile, T2* in, int2 shape, int radius){
+template<typename T>
+CUDA_FUNC void cacheTile(uchar4* tile, T* in, int2 shape, int radius){
     int2 gridPos    = { blockIdx.x, blockIdx.y };
     int2 blockShape = { blockDim.x, blockDim.y };
     int2 blockPos   = { threadIdx.x, threadIdx.y };
@@ -46,16 +46,18 @@ CUDA_FUNC void cacheTile(T1* tile, T2* in, int2 shape, int radius){
 
         if (inRange(framePos, shape)){
             int frameIdx = flattenIndex(framePos, shape);
-            
+
             int address = (int)&in[frameIdx];
             int wordAddress = address/4;
             int bank = wordAddress%32;
             int lane = threadId%32;
             //printf("Tid %3d | Lane %2d | Addr 0x%x | WordAddr 0x%x | Bank %2d\n", threadId, lane, address, wordAddress, bank);
+            //tile[idx] = make_uchar4(in[frameIdx].x,in[frameIdx].y,in[frameIdx].z, 0);
+            tile[idx] = *(uchar4*)(&in[frameIdx]);
 
-            tile[idx].x = in[frameIdx].x;
-            tile[idx].y = in[frameIdx].y;
-            tile[idx].z = in[frameIdx].z;
+            //tile[idx].x = in[frameIdx].x;
+            //tile[idx].y = in[frameIdx].y;
+            //tile[idx].z = in[frameIdx].z;
         }
     }
 
@@ -67,8 +69,8 @@ KERNEL void filterKernel(Framebuffer<T> frame, const FilterParams params){
     int2 pos = {
         blockIdx.x * blockDim.x + threadIdx.x,
         blockIdx.y * blockDim.y + threadIdx.y
-    };    
-    
+    };
+
     int2 blockShape = { blockDim.x, blockDim.y };
     int2 blockPos   = { threadIdx.x, threadIdx.y };
     int2 halo       = { params.radius, params.radius };
@@ -78,13 +80,13 @@ KERNEL void filterKernel(Framebuffer<T> frame, const FilterParams params){
 
     extern __shared__ uchar4 tile[];
     uchar4 *renderTile = tile;
-    
-    for(int level = 0; level < params.depth; level++){     
+
+    for(int level = 0; level < params.depth; level++){
         T* in = (level == 0) ? frame.render : frame.buffer[level%2];
         T* out = (level == (params.depth - 1)) ? frame.denoised : frame.buffer[(level+1)%2];
 
         if(params.cacheInput)
-            cacheTile<uchar4, T>(renderTile, in, frame.shape, params.radius);
+            cacheTile<T>(renderTile, in, frame.shape, params.radius);
 
         if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
             continue;
@@ -104,24 +106,81 @@ KERNEL void filterKernel(Framebuffer<T> frame, const FilterParams params){
                     continue;
 
                 float w = 1;
-                if(params.cacheInput){
-                    acum.x += w*renderTile[flattenIndex(nTilePos, tileShape)].x;
-                    acum.y += w*renderTile[flattenIndex(nTilePos, tileShape)].y;
-                    acum.z += w*renderTile[flattenIndex(nTilePos, tileShape)].z;
-                }
-                else {
-                    acum.x += w*in[flattenIndex(nPos, frame.shape)].x;
-                    acum.y += w*in[flattenIndex(nPos, frame.shape)].y;
-                    acum.z += w*in[flattenIndex(nPos, frame.shape)].z;
-                }
+                uchar4 memCache;
+                if(params.cacheInput)
+                    memCache = *(uchar4*)(&renderTile[flattenIndex(nTilePos, tileShape)]);
+                else
+                    memCache = *(uchar4*)(&in[flattenIndex(nPos, frame.shape)]);
+
+
+                unsigned int threadId = blockPos.y * blockShape.x + blockPos.x;
+                unsigned int address = (int)&renderTile[flattenIndex(nTilePos, tileShape)];
+                unsigned int wordAddress = address/4;
+                unsigned int bank = wordAddress%32;
+                unsigned int lane = threadId%32;
+                //printf("Tid %3d | Lane %2d | Addr 0x%x | WordAddr 0x%x | Bank %2d\n", threadId, lane, address, wordAddress, bank);
+
+                acum.x += w*memCache.x;
+                acum.y += w*memCache.y;
+                acum.z += w*memCache.z;
 
                 norm += w;
             }
         }
         acum /= norm;
-        out[flattenIndex(pos, frame.shape)].x = acum.x;
-        out[flattenIndex(pos, frame.shape)].y = acum.y;
-        out[flattenIndex(pos, frame.shape)].z = acum.z;
+
+        out[flattenIndex(pos, frame.shape)] = {
+            static_cast<uchar>(acum.x),
+            static_cast<uchar>(acum.y),
+            static_cast<uchar>(acum.z),
+        };
+        __syncthreads();
+    }
+}
+
+template <typename T>
+KERNEL void filterKernelBaseline(Framebuffer<T> frame, const FilterParams params){
+    int2 pos = {
+        blockIdx.x * blockDim.x + threadIdx.x,
+        blockIdx.y * blockDim.y + threadIdx.y
+    };
+
+    int2 blockShape = { blockDim.x, blockDim.y };
+    int2 blockPos   = { threadIdx.x, threadIdx.y };
+    int2 halo       = { params.radius, params.radius };
+
+    for(int level = 0; level < params.depth; level++){
+        T* in = (level == 0) ? frame.render : frame.buffer[level%2];
+        T* out = (level == (params.depth - 1)) ? frame.denoised : frame.buffer[(level+1)%2];
+
+        if(pos.x >= frame.shape.x || pos.y >= frame.shape.y)
+            continue;
+
+        float3 acum = {0, 0, 0};
+        float norm = 0;
+
+        int2 d;
+        for(d.x = -params.radius; d.x <= params.radius; d.x++){
+            for(d.y = -params.radius; d.y <= params.radius; d.y++){
+                int2 nPos = pos + d;
+
+                if(!inRange(nPos, frame.shape))
+                    continue;
+
+                float w = 1;
+                T mem = in[flattenIndex(nPos, frame.shape)];
+                acum.x += w*mem.x;
+                acum.y += w*mem.y;
+                acum.z += w*mem.z;
+                norm += w;
+            }
+        }
+        acum /= norm;
+        T mem;
+        mem.x = (unsigned char) acum.x;
+        mem.y = (unsigned char) acum.x;
+        mem.z = (unsigned char) acum.x;
+        out[flattenIndex(pos, frame.shape)] = mem;
 
         __syncthreads();
     }

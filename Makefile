@@ -72,14 +72,14 @@ $(TARGET): $(ALL_OBJ)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
-	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(INCLUDE_DIR)/%.cpp
-	@$(NVCC) $(CXXFLAGS) -c $< -o $@
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
 
 
 # =========================
@@ -106,3 +106,5 @@ clean:
 	$(MKDIR) -p test
 
 .PHONY: render all clean run test
+
+-include $(ALL_OBJ:.o=.d)
