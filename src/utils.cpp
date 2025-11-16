@@ -1,8 +1,5 @@
 #include "utils.h"
-
-#include "third_party/helper_math.h"
-
-
+#include "cuda_runtime.h"
 
 void printGPUProperties(){
     cudaDeviceProp prop;

@@ -1,12 +1,12 @@
 #include "image.h"
 #include "utils.h"
+#include "extended_math.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "third_party/stb_image.h"
 #include "third_party/stb_image_write.h"
-#include "third_party/helper_math.h"
 
 #include <string>
 #include <stdio.h>

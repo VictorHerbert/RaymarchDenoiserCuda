@@ -6,7 +6,7 @@
 #include "vector.h"
 #include "image.h"
 
-#include "third_party/helper_math.h"
+#include "extended_math.h"
 
 struct FilterParams {
     enum FilterType {AVERAGE, GAUSSIAN, CROSS, WAVELET} type;
@@ -130,9 +130,9 @@ KERNEL void filterKernel(GBuffer<T> frame, const FilterParams params){
         acum /= norm;
 
         out[flattenIndex(pos, frame.shape)] = {
-            static_cast<uchar>(acum.x),
-            static_cast<uchar>(acum.y),
-            static_cast<uchar>(acum.z),
+            static_cast<unsigned char>(acum.x),
+            static_cast<unsigned char>(acum.y),
+            static_cast<unsigned char>(acum.z),
         };
         __syncthreads();
     }
