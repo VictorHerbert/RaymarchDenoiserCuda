@@ -3,10 +3,10 @@
 #define FILTER_H
 
 #include "utils.h"
+#include "extended_math.h"
 #include "vector.h"
 #include "image.h"
-
-#include "extended_math.h"
+#include "gbuffer.h"
 
 struct FilterParams {
     enum FilterType {AVERAGE, GAUSSIAN, CROSS, WAVELET} type;

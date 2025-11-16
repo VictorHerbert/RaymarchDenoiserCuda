@@ -4,7 +4,7 @@
 
 #include <chrono>
 #include <iostream>
-#include "cuda_runtime.h"
+#include <cuda_runtime.h>
 
 #define KERNEL __global__
 #define CUDA_FUNC __forceinline__ __device__

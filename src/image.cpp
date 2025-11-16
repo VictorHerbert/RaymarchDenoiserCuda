@@ -13,6 +13,10 @@
 #include <stdexcept>
 #include <regex>
 
+Image::Image(){
+    shape = {0,0,0};
+    data = nullptr;
+}
 
 Image::Image(int3 shape){
     this->shape = shape;

@@ -1,6 +1,8 @@
 #ifndef GBUFFER_H
 #define GBUFFER_H
 
+#include "image.h"
+
 template<typename T>
 struct GBuffer{
     int2 shape;

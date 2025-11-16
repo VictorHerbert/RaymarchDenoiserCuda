@@ -3,9 +3,8 @@
 
 #include "utils.h"
 #include "vector.h"
-#include "gbuffer.h"
 
-#include "cuda_runtime.h"
+#include <cuda_runtime.h>
 #include <string>
 #include <vector>
 
@@ -17,6 +16,14 @@
 struct Image {
     int3 shape;   /**< Dimensions of the image (width, height, depth or channels). */
     byte* data;   /**< Pointer to the raw image data. */
+
+
+    /**
+     * @brief Default constructor for the Image struct.
+     * 
+     * Initializes the image dimensions to zero and sets the data pointer to nullptr.
+     */
+    Image();
 
     /**
      * @brief Constructs an image with the specified shape.
