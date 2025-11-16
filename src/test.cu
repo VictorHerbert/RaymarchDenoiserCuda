@@ -6,40 +6,48 @@
 
 #include <vector>
 #include <cassert>
+#include <regex>
 
 
-FuncVector registered_funcs;
 const std::string OUTPUT_PATH =  "test/";
 const std::string SPONZA_SAMPLE =  "render/sponza/render/1.png";
 
-void test() {
-    if(registered_funcs.empty()){
-        std::cout << "No tests found" << std::endl;
-        return;
-    }
-    std::cout << "----------------------------------------------------------" << std::endl;
-    std::cout << "TEST SUITE: " << registered_funcs.size() << " test" << ((registered_funcs.size() == 1) ? "" : "s") <<" found" << std::endl;
-    std::cout << "----------------------------------------------------------" << std::endl;
+FuncVector registered_funcs;
+
+void test(std::string wildcard) {
+    printf("----------------------------------------------------------\n");
+    printf("%d available tests: ", registered_funcs.size());
+    for (auto& [name, func] : registered_funcs)
+        printf("%s ", name.c_str());
+    printf("\n----------------------------------------------------------\n");
+    printf("%s\n", wildcard.c_str());
+
+    std::regex base_regex(wildcard);
+
     for (auto& [name, func] : registered_funcs) {
-        
+        if (!std::regex_match(name, base_regex)) {
+            continue;
+        }
+
         try {
-            std::cout << "TEST " << name << ":" <<std::endl;
+            printf("TEST %s:\n", name.c_str());
             auto start = std::chrono::high_resolution_clock::now();
             func();
             auto end = std::chrono::high_resolution_clock::now();
             double frameTime = std::chrono::duration<double, std::milli>(end - start).count();
 
-            std::cout << "Passed with " << frameTime << " ms" <<std::endl;
+            printf("Passed with %.3f ms\n", frameTime);
         }
         catch (const std::runtime_error& e) {
-            std::cout << "Fail with " << e.what() << std::endl;
+            printf("Fail with %s\n", e.what());
         }
         catch (...) {
-            std::cout << "Failed" << std::endl;
+            printf("Failed\n");
         }
-        std::cout << "----------------------------------------------------------" << std::endl;
+        printf("----------------------------------------------------------\n");
     }
 }
+
 
 SKIP(DEVICE_STATS){
     printGPUProperties();

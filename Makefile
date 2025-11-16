@@ -60,6 +60,9 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 test: $(TARGET)
 	@./$(TARGET) -t
 
+run_no_args: $(TARGET)
+	@./$(TARGET)
+
 memcheck: $(TARGET)
 	compute-sanitizer --tool memcheck --show-backtrace=yes --log-file $(BUILD_DIR)/memcheck.log ./$(TARGET) -t
 
