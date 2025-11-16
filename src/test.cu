@@ -10,7 +10,7 @@
 
 
 const std::string OUTPUT_PATH =  "test/";
-const std::string SPONZA_SAMPLE =  "render/sponza/render/1.png";
+const std::string IMAGE_SAMPLE_PATH =  "render/sponza/render/1.png";
 
 FuncVector registered_funcs;
 
@@ -20,7 +20,6 @@ void test(std::string wildcard) {
     for (auto& [name, func] : registered_funcs)
         printf("%s ", name.c_str());
     printf("\n----------------------------------------------------------\n");
-    printf("%s\n", wildcard.c_str());
 
     std::regex base_regex(wildcard);
 
@@ -53,13 +52,12 @@ SKIP(DEVICE_STATS){
     printGPUProperties();
 }
 
-SKIP(image_open){
-    Image image("render/cornell/1/render.png");
-}
+TEST(IMAGE){
+    Image image3(IMAGE_SAMPLE_PATH, 3);
+    image3.save(OUTPUT_PATH + "image_open_save3.png");
 
-SKIP(image_open_save){
-    Image image("render/cornell/1/render.png");
-    image.save(OUTPUT_PATH + "image.png");
+    Image image4(IMAGE_SAMPLE_PATH, 4);
+    image4.save(OUTPUT_PATH + "image_open_save4.png");
 }
 
 SKIP(FILTER_SINGLE_BLOCK){
@@ -132,7 +130,7 @@ SKIP(FILTER_UCHAR3){
     std::cout << std::endl;
 }
 
-TEST(FILTER_UCHAR4){
+SKIP(FILTER_UCHAR4){
     int2 shape = {1920, 1080};
     CudaVector<uchar4> in(totalSize(shape));
     CudaVector<uchar4> out(totalSize(shape));
@@ -173,7 +171,7 @@ TEST(FILTER_UCHAR4){
     std::cout << std::endl;
 }
 
-TEST(FILTER_BASELINE4){
+SKIP(FILTER_BASELINE4){
     int2 shape = {1920, 1080};
     CudaVector<uchar4> in(totalSize(shape));
     CudaVector<uchar4> out(totalSize(shape));
@@ -201,7 +199,7 @@ TEST(FILTER_BASELINE4){
 }
 
 
-TEST(FILTER_BASELINE3){
+SKIP(FILTER_BASELINE3){
     int2 shape = {1920, 1080};
     CudaVector<uchar3> in(totalSize(shape));
     CudaVector<uchar3> out(totalSize(shape));

@@ -22,10 +22,6 @@ struct FilterParams {
     bool cacheBuffer = true;
 };
 
-
-float3 snrCPU(Pixel* original, Pixel* noisy, int2 shape);
-float3 snrGPU(Pixel* original, Pixel* noisy, int2 shape);
-
 template<typename T>
 CUDA_FUNC void cacheTile(uchar4* tile, T* in, int2 shape, int radius){
     int2 gridPos    = { blockIdx.x, blockIdx.y };

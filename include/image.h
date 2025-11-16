@@ -5,50 +5,67 @@
 #include "vector.h"
 #include "gbuffer.h"
 
-
 #include "cuda_runtime.h"
-
 #include <string>
 #include <vector>
 
-typedef uchar3 Pixel;
+/**
+ * @brief Represents an image in memory.
+ * 
+ * Contains the pixel data and the dimensions of the image.
+ */
+struct Image {
+    int3 shape;   /**< Dimensions of the image (width, height, depth or channels). */
+    byte* data;   /**< Pointer to the raw image data. */
 
-struct Image{
-    int2 shape;
-    Pixel* data;
-    std::vector<Pixel> vecBuffer;
+    /**
+     * @brief Constructs an image with the specified shape.
+     * 
+     * Allocates memory for the image data based on the shape.
+     * 
+     * @param shape Dimensions of the image.
+     */
+    Image(int3 shape);
 
-    Image(){}
-    Image(int2 shape);
-    Image(uchar3* data, int2 shape);
-    Image(std::string filename);
-    
+    /**
+     * @brief Constructs an image from existing data.
+     * 
+     * @param data Pointer to existing image data.
+     * @param shape Dimensions of the image.
+     */
+    Image(byte* data, int3 shape);
+
+    /**
+     * @brief Loads an image from a file.
+     * 
+     * @param filename Path to the image file.
+     * @param channels Number of channels to load (e.g., 1 for grayscale, 3 for RGB).
+     */
+    Image(std::string filename, int channels);
+
+    /**
+     * @brief Destructor.
+     * 
+     * Frees the allocated image data if necessary.
+     */
+    ~Image();
+
+    /**
+     * @brief Saves the image to a file.
+     * 
+     * @param filename Path where the image will be saved.
+     */
     void save(std::string filename);
-    static void save(std::string filename, uchar3* data, int2 shape);
+
+    /**
+     * @brief Static method to save image data to a file without creating an Image object.
+     * 
+     * @param filename Path where the image will be saved.
+     * @param data Pointer to the image data.
+     * @param shape Dimensions of the image.
+     */
+    static void save(std::string filename, byte* data, int3 shape);
 };
 
-Pixel* openImage(std::string filepath);
-void saveImage(std::string filepath, Pixel* data, int2 shape);
-
-template<typename T>
-struct CPUGBuffer : GBuffer<T>{
-    Image render, albedo, normal;
-};
-
-template<typename T>
-struct CudaGBuffer : GBuffer<T> {
-    CudaVector<T> renderVec, albedoVec, normalVec, denoisedVec;
-    CudaVector<T> bufferVec;
-    //CPUVector<Pixel> denoisedVecCpu; // TODO remove
-    T* denoisedCPU;
-
-    CudaGBuffer(){};
-    ~CudaGBuffer();
-    CudaGBuffer (int2 shape);
-
-    void allocate(int2 shape);
-
-    void openImages(std::string filepath, cudaStream_t stream = 0);
-};
 
 #endif

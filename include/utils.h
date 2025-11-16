@@ -11,6 +11,9 @@
 #define CUDA_CPU_FUNC __forceinline__ __device__ __host__
 #define LAUNCHER
 
+
+typedef unsigned char byte;
+
 #define CHECK_CUDA(call) do { \
     CUresult err = call; \
     if (err != CUDA_SUCCESS) { \
