@@ -52,7 +52,7 @@ SKIP(DEVICE_STATS){
     printGPUProperties();
 }
 
-TEST(IMAGE){
+SKIP(IMAGE){
     Image image3(IMAGE_SAMPLE_PATH, 3);
     image3.save(OUTPUT_PATH + "image_open_save3.png");
 
@@ -60,7 +60,7 @@ TEST(IMAGE){
     image4.save(OUTPUT_PATH + "image_open_save4.png");
 }
 
-SKIP(FILTER_SINGLE_BLOCK){
+TEST(FILTER_SINGLE_BLOCK){
     int2 shape =  {1920, 1080};
     CudaVector<uchar4> in(totalSize(shape));
     CudaVector<uchar4> out(totalSize(shape));
@@ -74,7 +74,8 @@ SKIP(FILTER_SINGLE_BLOCK){
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    filterKernel<uchar4><<<1, blockSize, 49152>>>(
+    printf(" Tid | WarpId |     Address     | WordAddr \n");
+    filterKernelBaseline<uchar4><<<1, blockSize, 49152>>>(
         {.shape=shape, .render=in.data(), .denoised=out.data()},
         {.type=FilterParams::AVERAGE, .depth=1, .radius=2, .cacheInput=cacheInput});
 
@@ -95,10 +96,10 @@ SKIP(FILTER_UCHAR3){
     CudaVector<uchar3> in(totalSize(shape));
     CudaVector<uchar3> out(totalSize(shape));
 
-    CPUVector<dim3> blockSizes = {{8,8}, {16,16}};
-    CPUVector<bool> cacheInputs = {false, true};
+    CpuVector<dim3> blockSizes = {{8,8}, {16,16}};
+    CpuVector<bool> cacheInputs = {false, true};
 
-    CPUVector<std::tuple<dim3, bool>> test_vectors = {
+    CpuVector<std::tuple<dim3, bool>> test_vectors = {
         //{{8,8}, false},
         //{{8,8}, true},
         {{16,16}, false},
@@ -135,10 +136,10 @@ SKIP(FILTER_UCHAR4){
     CudaVector<uchar4> in(totalSize(shape));
     CudaVector<uchar4> out(totalSize(shape));
 
-    CPUVector<dim3> blockSizes = {{8,8}, {16,16}};
-    CPUVector<bool> cacheInputs = {false, true};
+    CpuVector<dim3> blockSizes = {{8,8}, {16,16}};
+    CpuVector<bool> cacheInputs = {false, true};
 
-    CPUVector<std::tuple<dim3, bool>> test_vectors = {
+    CpuVector<std::tuple<dim3, bool>> test_vectors = {
         //{{8,8}, false},
         //{{8,8}, true},
         {{16,16}, false},
@@ -176,7 +177,7 @@ SKIP(FILTER_BASELINE4){
     CudaVector<uchar4> in(totalSize(shape));
     CudaVector<uchar4> out(totalSize(shape));
 
-    CPUVector<dim3> blockSizes = { {16,16}, {32, 8}, {64, 4}};
+    CpuVector<dim3> blockSizes = { {16,16}, {32, 8}, {64, 4}};
 
     for(auto& blockSize : blockSizes){
         dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);
@@ -204,7 +205,7 @@ SKIP(FILTER_BASELINE3){
     CudaVector<uchar3> in(totalSize(shape));
     CudaVector<uchar3> out(totalSize(shape));
 
-    CPUVector<dim3> blockSizes = { {16,16}, {32, 8}};
+    CpuVector<dim3> blockSizes = { {16,16}, {32, 8}};
 
     for(auto& blockSize : blockSizes){
         dim3 gridSize((shape.x + blockSize.x-1) / blockSize.x, (shape.y + blockSize.y-1) / blockSize.y);

@@ -10,21 +10,21 @@
 #include <stdexcept>
 
 template <typename T>
-using CPUVector = std::vector<T>;
+using CpuVector = std::vector<T>;
 
 /**
  * @brief Alias for a standard CPU-side dynamic array.
  * @tparam T Element type.
  */
 template <typename T>
-using CPUVector = std::vector<T>;
+using CpuVector = std::vector<T>;
 
 /**
  * @brief GPU-managed dynamic array backed by CUDA device memory.
  * @tparam T Element type.
  *
  * Provides allocation, deallocation, and data transfer between host
- * (CPUVector) and device memory. Instances manage their own lifetime
+ * (CpuVector) and device memory. Instances manage their own lifetime
  * and ensure proper cleanup of GPU resources. The interface mirrors
  * familiar parts of std::vector by exposing commonly used methods such
  * as size and data for easier integration with existing code.
@@ -59,7 +59,7 @@ public:
      * @brief Allocates and initializes device memory from a CPU vector.
      * @param v Host-side vector providing initial contents.
      */
-    CudaVector(CPUVector<T>& v);
+    CudaVector(CpuVector<T>& v);
 
     /**
      * @brief Returns the raw device pointer.
@@ -127,7 +127,7 @@ CudaVector<T>::CudaVector(T* v, size_t size) : size_p(size) {
 }
 
 template <typename T>
-CudaVector<T>::CudaVector(CPUVector<T>& v) : CudaVector(v.data(), v.size()) {}
+CudaVector<T>::CudaVector(CpuVector<T>& v) : CudaVector(v.data(), v.size()) {}
 
 template <typename T>
 T* CudaVector<T>::data() {return data_p;}

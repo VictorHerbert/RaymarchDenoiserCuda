@@ -38,7 +38,7 @@ TARGET = $(BUILD_DIR)/main
 # ===========================================================================
 
 $(TARGET): $(OBJ)
-	@echo "Linking $< into $@"
+	@echo "Linking $^ into $@"
 	@$(NVCC) $(CXXFLAGS_LK) -o $@ $^ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp

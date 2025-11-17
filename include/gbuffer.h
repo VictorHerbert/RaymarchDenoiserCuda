@@ -23,7 +23,7 @@ template<typename T>
 struct CudaGBuffer : GBuffer<T> {
     CudaVector<T> renderVec, albedoVec, normalVec, denoisedVec;
     CudaVector<T> bufferVec;
-    //CPUVector<Pixel> denoisedVecCpu; // TODO remove
+    //CpuVector<Pixel> denoisedVecCpu; // TODO remove
     T* denoisedCPU;
 
     CudaGBuffer(){};

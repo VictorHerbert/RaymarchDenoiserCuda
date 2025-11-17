@@ -169,6 +169,14 @@ KERNEL void filterKernelBaseline(GBuffer<T> frame, const FilterParams params){
                 acum.y += w*mem.y;
                 acum.z += w*mem.z;
                 norm += w;
+
+                
+                unsigned int threadId = blockPos.y * blockShape.x + blockPos.x;
+                unsigned int warpId = threadId%32;
+                unsigned long long address = (unsigned long long) &in[flattenIndex(nPos, frame.shape)];
+                unsigned long long wordAddress = address/128;
+                //printf("Tid %3d | WarpId %2d | Addr 0x%x | WordAddr 0x%x\n", threadId, warpId, address, wordAddress);
+                printf(" %3d | %6d | %p | %p\n", threadId, warpId, address, wordAddress);
             }
         }
         acum /= norm;
