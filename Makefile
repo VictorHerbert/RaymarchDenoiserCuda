@@ -23,9 +23,12 @@ INCLUDE_DIR = include
 #                        Source and Object Files
 # ===========================================================================
 
-SRC        = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/*.cu)
-OBJ        = $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-OBJ        := $(OBJ:$(SRC_DIR)/%.cu=$(BUILD_DIR)/%.o)
+SRC			= $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/*.cu)
+OBJ			= $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+OBJ			:= $(OBJ:$(SRC_DIR)/%.cu=$(BUILD_DIR)/%.o)
+DEPS		= $(OBJ:.o=.d)
+
+-include $(DEPS)
 
 # ===========================================================================
 #                                 Target
@@ -50,8 +53,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
 	@echo "Recompiling $< into $@"
 	@$(NVCC) $(CXXFLAGS) -M -MT $@ $< > $(BUILD_DIR)/$*.d
 	@$(NVCC) $(CXXFLAGS) -c $< -o $@
-
--include $(ALL_OBJ:.o=.d)
 
 # ===========================================================================
 #                                 Tasks
@@ -85,6 +86,3 @@ clean:
 	$(RM) -rf $(BUILD_DIR)/*
 	$(RM) -rf test/*
 	$(MKDIR) -p test
-
-
-
