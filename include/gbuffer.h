@@ -3,28 +3,25 @@
 
 #include "image.h"
 
-template<typename T>
 struct GBuffer{
     int2 shape;
 
-    T* render;
-    T* denoised;
-    T* normal;
-    T* albedo;
-    T* buffer[2];
+    uchar4* render;
+    uchar4* denoised;
+    uchar4* normal;
+    uchar4* albedo;
+    uchar4* buffer[2];
 };
 
-template<typename T>
-struct CPUGBuffer : GBuffer<T>{
+struct CPUGBuffer : GBuffer {
     Image render, albedo, normal;
 };
 
-template<typename T>
-struct CudaGBuffer : GBuffer<T> {
-    CudaVector<T> renderVec, albedoVec, normalVec, denoisedVec;
-    CudaVector<T> bufferVec;
+struct CudaGBuffer : GBuffer {
+    CudaVector<uchar4> renderVec, albedoVec, normalVec, denoisedVec;
+    CudaVector<uchar4> bufferVec;
     //CpuVector<Pixel> denoisedVecCpu; // TODO remove
-    T* denoisedCPU;
+    uchar4* denoisedCPU;
 
     CudaGBuffer(){};
     ~CudaGBuffer();
